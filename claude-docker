@@ -1,0 +1,170 @@
+#!/bin/bash
+
+IMAGE_NAME="claude-code"
+IMAGE_TAG="latest"
+IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+
+# Get local username and UID/GID
+LOCAL_USER="${USER}"
+LOCAL_UID="$(id -u)"
+LOCAL_GID="$(id -g)"
+
+# Build image
+cat << 'EOF' | docker build --build-arg LOCAL_USER="$LOCAL_USER" --build-arg LOCAL_UID="$LOCAL_UID" --build-arg LOCAL_GID="$LOCAL_GID" -t "$IMAGE" -f - . > /tmp/docker_build.log 2>&1 &
+FROM ubuntu:24.04
+
+# Install dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    curl \
+    ca-certificates \
+    git \
+    ripgrep \
+    jq \
+    python3-pip \
+    python3-venv \
+    wget \
+    tree \
+    libgcc-s1 \
+    libgssapi-krb5-2 \
+    libicu74 \
+    libssl3t64 \
+    tzdata \
+    zlib1g \
+    # Playwright chromium dependencies (from playwright nativeDeps.ts for ubuntu-24.04-x64)
+    libasound2t64 \
+    libatk-bridge2.0-0t64 \
+    libatk1.0-0t64 \
+    libatspi2.0-0t64 \
+    libcairo2 \
+    libcups2t64 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libglib2.0-0t64 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libx11-6 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    && rm -rf /var/lib/apt/lists*
+
+# Install Go 1.25.5
+RUN wget -q https://go.dev/dl/go1.25.5.linux-amd64.tar.gz -O /tmp/go.tar.gz && \
+    tar -C /usr/local -xzf /tmp/go.tar.gz && \
+    rm /tmp/go.tar.gz
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Install latest .NET SDK
+RUN wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh && \
+    chmod +x /tmp/dotnet-install.sh && \
+    /tmp/dotnet-install.sh --version latest --install-dir /usr/local/dotnet && \
+    rm /tmp/dotnet-install.sh
+ENV PATH="/usr/local/dotnet:${PATH}"
+ENV DOTNET_ROOT="/usr/local/dotnet"
+ENV DOTNET_CLI_TELEMETRY_OPTOUT="1"
+
+ARG LOCAL_USER=claude
+ARG LOCAL_UID=1000
+ARG LOCAL_GID=1000
+
+# Create user matching host (delete Ubuntu 24.04's default ubuntu:1000 first)
+RUN userdel -r ubuntu && \
+    groupadd -g ${LOCAL_GID} ${LOCAL_USER} && \
+    useradd -m -u ${LOCAL_UID} -g ${LOCAL_GID} -s /bin/bash ${LOCAL_USER} && \
+    mkdir -p /home/${LOCAL_USER}/.claude && \
+    chown ${LOCAL_USER}:${LOCAL_USER} /home/${LOCAL_USER}/.claude
+ENV HOME=/home/${LOCAL_USER}
+
+# Set environment variables for security and headless operation
+ENV DISABLE_AUTOUPDATER=1 \
+    DISABLE_TELEMETRY=1 \
+    DISABLE_ERROR_REPORTING=1
+
+ENV PATH="/home/${LOCAL_USER}/.local/bin:${PATH}" \
+    GOBIN="/home/${LOCAL_USER}/.local/bin"
+
+USER ${LOCAL_USER}
+
+# Install nvm and Node.js v24
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+ENV NVM_DIR="/home/${LOCAL_USER}/.nvm"
+ENV PATH="${NVM_DIR}/versions/node/v24.13.0/bin:${PATH}"
+RUN . "$NVM_DIR/nvm.sh" && nvm install 24
+
+# Install uv (Python package manager)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install Claude Code
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Install Terraform MCP Server
+RUN go install github.com/hashicorp/terraform-mcp-server/cmd/terraform-mcp-server@latest
+
+WORKDIR /app
+
+# Default entry point
+ENTRYPOINT ["claude"]
+EOF
+
+BUILD_PID=$!
+
+# Trap to clean up on interrupt
+trap "kill $BUILD_PID 2>/dev/null; exit 130" INT TERM
+
+# Wait up to 3 seconds, checking every second
+for i in {1..3}; do
+    if ! kill -0 $BUILD_PID 2>/dev/null; then
+        break
+    fi
+    sleep 1
+done
+
+# Check if still running after 3 seconds
+if kill -0 $BUILD_PID 2>/dev/null; then
+    echo "Building Docker image ${IMAGE}..." >&2
+    tail -f /tmp/docker_build.log &
+    TAIL_PID=$!
+    wait $BUILD_PID
+    BUILD_STATUS=$?
+    kill $TAIL_PID 2>/dev/null
+    wait $TAIL_PID 2>/dev/null
+else
+    wait $BUILD_PID
+    BUILD_STATUS=$?
+fi
+
+if [ $BUILD_STATUS -ne 0 ]; then
+    echo "Build failed:" >&2
+    cat /tmp/docker_build.log >&2
+    exit $BUILD_STATUS
+fi
+
+# Check if bash was requested
+ENTRYPOINT_OVERRIDE=""
+if [ "$1" = "bash" ]; then
+  ENTRYPOINT_OVERRIDE="--entrypoint bash"
+  shift
+fi
+
+# Run the container with the current directory mounted to the same path
+# Use the same user (UID/GID) as the host and apply security hardening
+docker run -it --rm \
+  --user "${LOCAL_UID}:${LOCAL_GID}" \
+  --net=host \
+  --security-opt=no-new-privileges:true \
+  --cap-drop=ALL \
+  -v "$(pwd):$(pwd)" \
+  -v "${HOME}/.claude:/home/${LOCAL_USER}/.claude" \
+  -v "${HOME}/.claude.json:/home/${LOCAL_USER}/.claude.json" \
+  -e LANG="C.UTF-8" \
+  -e LC_ALL="C.UTF-8" \
+  -e COLORTERM=truecolor \
+  -w "$(pwd)" \
+  $ENTRYPOINT_OVERRIDE \
+  "$IMAGE" "$@"
