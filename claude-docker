@@ -4,13 +4,25 @@ IMAGE_NAME="claude-code"
 IMAGE_TAG="latest"
 IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 
+# Parse --rebuild flag
+REBUILD_FLAG=""
+ARGS=()
+for arg in "$@"; do
+  if [ "$arg" = "--rebuild" ]; then
+    REBUILD_FLAG="--no-cache"
+  else
+    ARGS+=("$arg")
+  fi
+done
+set -- "${ARGS[@]}"
+
 # Get local username and UID/GID
 LOCAL_USER="${USER}"
 LOCAL_UID="$(id -u)"
 LOCAL_GID="$(id -g)"
 
 # Build image
-cat << 'EOF' | docker build --build-arg LOCAL_USER="$LOCAL_USER" --build-arg LOCAL_UID="$LOCAL_UID" --build-arg LOCAL_GID="$LOCAL_GID" -t "$IMAGE" -f - . > /tmp/docker_build.log 2>&1 &
+cat << 'EOF' | docker build $REBUILD_FLAG --build-arg LOCAL_USER="$LOCAL_USER" --build-arg LOCAL_UID="$LOCAL_UID" --build-arg LOCAL_GID="$LOCAL_GID" -t "$IMAGE" -f - . > /tmp/docker_build.log 2>&1 &
 FROM ubuntu:24.04
 
 # Install dependencies
@@ -24,6 +36,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteract
     python3-venv \
     wget \
     tree \
+    postgresql-client \
     libgcc-s1 \
     libgssapi-krb5-2 \
     libicu74 \
@@ -100,6 +113,13 @@ RUN . "$NVM_DIR/nvm.sh" && nvm install 24
 # Install uv (Python package manager)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/home/${LOCAL_USER}/.cargo/bin:${PATH}"
+
+# Install Playwright and Chromium browser
+RUN uv tool install playwright && playwright install chromium
+
 # Install Claude Code
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
@@ -127,7 +147,11 @@ done
 
 # Check if still running after 3 seconds
 if kill -0 $BUILD_PID 2>/dev/null; then
-    echo "Building Docker image ${IMAGE}..." >&2
+    if [ -n "$REBUILD_FLAG" ]; then
+        echo "Rebuilding Docker image ${IMAGE} from scratch..." >&2
+    else
+        echo "Building Docker image ${IMAGE}..." >&2
+    fi
     tail -f /tmp/docker_build.log &
     TAIL_PID=$!
     wait $BUILD_PID
