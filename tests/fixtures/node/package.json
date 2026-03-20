@@ -1,0 +1,7 @@
+{
+  "name": "firewall-test",
+  "private": true,
+  "dependencies": {
+    "lodash": "^4"
+  }
+}

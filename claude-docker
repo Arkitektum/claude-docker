@@ -3,192 +3,96 @@
 IMAGE_NAME="claude-code"
 IMAGE_TAG="latest"
 IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claude-docker"
 
-# Parse --rebuild flag
+# Parse flags
 REBUILD_FLAG=""
+NO_FIREWALL=""
 ARGS=()
 for arg in "$@"; do
-  if [ "$arg" = "--rebuild" ]; then
-    REBUILD_FLAG="--no-cache"
-  else
-    ARGS+=("$arg")
-  fi
+  case "$arg" in
+    --rebuild) REBUILD_FLAG="--no-cache" ;;
+    --no-firewall) NO_FIREWALL=1 ;;
+    *) ARGS+=("$arg") ;;
+  esac
 done
 set -- "${ARGS[@]}"
+
+# Ensure Claude config exists on host before bind-mounting
+mkdir -p "${HOME}/.claude"
+touch "${HOME}/.claude.json"
 
 # Get local username and UID/GID
 LOCAL_USER="${USER}"
 LOCAL_UID="$(id -u)"
 LOCAL_GID="$(id -g)"
 
-# Build image
-cat << 'EOF' | docker build $REBUILD_FLAG --build-arg LOCAL_USER="$LOCAL_USER" --build-arg LOCAL_UID="$LOCAL_UID" --build-arg LOCAL_GID="$LOCAL_GID" -t "$IMAGE" -f - . > /tmp/docker_build.log 2>&1 &
-FROM ubuntu:24.04
-
-# Install dependencies
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl \
-    ca-certificates \
-    git \
-    ripgrep \
-    jq \
-    python3-pip \
-    python3-venv \
-    wget \
-    tree \
-    postgresql-client \
-    libgcc-s1 \
-    libgssapi-krb5-2 \
-    libicu74 \
-    libssl3t64 \
-    tzdata \
-    zlib1g \
-    # Playwright chromium dependencies (from playwright nativeDeps.ts for ubuntu-24.04-x64)
-    libasound2t64 \
-    libatk-bridge2.0-0t64 \
-    libatk1.0-0t64 \
-    libatspi2.0-0t64 \
-    libcairo2 \
-    libcups2t64 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libglib2.0-0t64 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libx11-6 \
-    libxcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxrandr2 \
-    && rm -rf /var/lib/apt/lists*
-
-# Install Go 1.25.5
-RUN wget -q https://go.dev/dl/go1.25.5.linux-amd64.tar.gz -O /tmp/go.tar.gz && \
-    tar -C /usr/local -xzf /tmp/go.tar.gz && \
-    rm /tmp/go.tar.gz
-ENV PATH="/usr/local/go/bin:${PATH}"
-
-# Install latest .NET SDK
-RUN wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh && \
-    chmod +x /tmp/dotnet-install.sh && \
-    /tmp/dotnet-install.sh --version latest --install-dir /usr/local/dotnet && \
-    rm /tmp/dotnet-install.sh
-ENV PATH="/usr/local/dotnet:${PATH}"
-ENV DOTNET_ROOT="/usr/local/dotnet"
-ENV DOTNET_CLI_TELEMETRY_OPTOUT="1"
-
-ARG LOCAL_USER=claude
-ARG LOCAL_UID=1000
-ARG LOCAL_GID=1000
-
-# Create user matching host (delete Ubuntu 24.04's default ubuntu:1000 first)
-RUN userdel -r ubuntu && \
-    groupadd -g ${LOCAL_GID} ${LOCAL_USER} && \
-    useradd -m -u ${LOCAL_UID} -g ${LOCAL_GID} -s /bin/bash ${LOCAL_USER} && \
-    mkdir -p /home/${LOCAL_USER}/.claude && \
-    chown ${LOCAL_USER}:${LOCAL_USER} /home/${LOCAL_USER}/.claude
-ENV HOME=/home/${LOCAL_USER}
-
-# Set environment variables for security and headless operation
-ENV DISABLE_AUTOUPDATER=1 \
-    DISABLE_TELEMETRY=1 \
-    DISABLE_ERROR_REPORTING=1
-
-ENV PATH="/home/${LOCAL_USER}/.local/bin:${PATH}" \
-    GOBIN="/home/${LOCAL_USER}/.local/bin"
-
-USER ${LOCAL_USER}
-
-# Install nvm and Node.js v24
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-ENV NVM_DIR="/home/${LOCAL_USER}/.nvm"
-ENV PATH="${NVM_DIR}/versions/node/v24.13.0/bin:${PATH}"
-RUN . "$NVM_DIR/nvm.sh" && nvm install 24
-
-# Install uv (Python package manager)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/home/${LOCAL_USER}/.cargo/bin:${PATH}"
-
-# Install Playwright and Chromium browser
-RUN uv tool install playwright && playwright install chromium
-
-# Install Claude Code
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# Install Terraform MCP Server
-RUN go install github.com/hashicorp/terraform-mcp-server/cmd/terraform-mcp-server@latest
-
-WORKDIR /app
-
-# Default entry point
-ENTRYPOINT ["claude"]
-EOF
-
-BUILD_PID=$!
-
-# Trap to clean up on interrupt
-trap "kill $BUILD_PID 2>/dev/null; exit 130" INT TERM
-
-# Wait up to 3 seconds, checking every second
-for i in {1..3}; do
-    if ! kill -0 $BUILD_PID 2>/dev/null; then
-        break
-    fi
-    sleep 1
-done
-
-# Check if still running after 3 seconds
-if kill -0 $BUILD_PID 2>/dev/null; then
-    if [ -n "$REBUILD_FLAG" ]; then
-        echo "Rebuilding Docker image ${IMAGE} from scratch..." >&2
-    else
-        echo "Building Docker image ${IMAGE}..." >&2
-    fi
-    tail -f /tmp/docker_build.log &
-    TAIL_PID=$!
-    wait $BUILD_PID
-    BUILD_STATUS=$?
-    kill $TAIL_PID 2>/dev/null
-    wait $TAIL_PID 2>/dev/null
-else
-    wait $BUILD_PID
-    BUILD_STATUS=$?
+# Verify build context exists
+if [ ! -f "$DATA_DIR/Dockerfile" ]; then
+  echo "Error: Dockerfile not found at $DATA_DIR/Dockerfile" >&2
+  echo "Run install.sh first." >&2
+  exit 1
 fi
 
-if [ $BUILD_STATUS -ne 0 ]; then
-    echo "Build failed:" >&2
-    cat /tmp/docker_build.log >&2
-    exit $BUILD_STATUS
+# Seed marketplace plugins into build context
+if [ -x "$DATA_DIR/seed-plugins.sh" ]; then
+  "$DATA_DIR/seed-plugins.sh" "$DATA_DIR/plugin-seed" ||
+    echo "Warning: failed to seed marketplace plugins, continuing without plugins" >&2
+fi
+
+# Build image
+if ! docker build $REBUILD_FLAG \
+  --build-arg LOCAL_USER="$LOCAL_USER" \
+  --build-arg LOCAL_UID="$LOCAL_UID" \
+  --build-arg LOCAL_GID="$LOCAL_GID" \
+  -t "$IMAGE" \
+  "$DATA_DIR"; then
+  exit $?
 fi
 
 # Check if bash was requested
-ENTRYPOINT_OVERRIDE=""
+CMD="claude"
 if [ "$1" = "bash" ]; then
-  ENTRYPOINT_OVERRIDE="--entrypoint bash"
+  CMD="bash"
   shift
 fi
 
-# Run the container with the current directory mounted to the same path
-# Use the same user (UID/GID) as the host and apply security hardening
-docker run -it --rm \
-  --user "${LOCAL_UID}:${LOCAL_GID}" \
-  --net=host \
-  --security-opt=no-new-privileges:true \
-  --cap-drop=ALL \
-  -v "$(pwd):$(pwd)" \
-  -v "${HOME}/.claude:/home/${LOCAL_USER}/.claude" \
-  -v "${HOME}/.claude.json:/home/${LOCAL_USER}/.claude.json" \
-  -e LANG="C.UTF-8" \
-  -e LC_ALL="C.UTF-8" \
-  -e COLORTERM=truecolor \
-  -w "$(pwd)" \
-  $ENTRYPOINT_OVERRIDE \
-  "$IMAGE" "$@"
+# Build docker run arguments
+RUN_ARGS=(
+  -it --rm
+  -v "$(pwd):$(pwd)"
+  -v "${HOME}/.claude:/home/${LOCAL_USER}/.claude"
+  -v "${HOME}/.claude.json:/home/${LOCAL_USER}/.claude.json"
+  -e LANG="C.UTF-8"
+  -e LC_ALL="C.UTF-8"
+  -e COLORTERM=truecolor
+  -w "$(pwd)"
+)
+
+if [ -n "$NO_FIREWALL" ]; then
+  # No firewall: host networking, drop all capabilities, run as host user
+  RUN_ARGS+=(
+    --user "${LOCAL_UID}:${LOCAL_GID}"
+    --security-opt=no-new-privileges:true
+    --net=host
+    --cap-drop=ALL
+    --entrypoint "$CMD"
+  )
+  docker run "${RUN_ARGS[@]}" "$IMAGE" "$@"
+else
+  # Firewall: bridge networking, start as root for iptables, then exec as user
+  RUN_ARGS+=(
+    --user root
+    --cap-drop=ALL
+    --cap-add=NET_ADMIN
+    --cap-add=NET_RAW
+  )
+  CONTAINER_ID=$(docker run -d --init "${RUN_ARGS[@]}" "$IMAGE" sleep infinity)
+  trap "docker rm -f $CONTAINER_ID >/dev/null 2>&1" EXIT
+  if ! docker exec "$CONTAINER_ID" /usr/local/bin/init-firewall.sh; then
+    echo "Firewall init failed, refusing to start without firewall." >&2
+    echo "Use --no-firewall to skip." >&2
+    exit 1
+  fi
+  docker exec -it --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" "$CMD" "$@"
+fi
