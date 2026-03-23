@@ -2,17 +2,32 @@
 
 Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) inside a Docker container with a network proxy. A Squid forward proxy restricts internet access to only the services Claude needs (Anthropic API, GitHub, package registries), so Claude can work autonomously without risking unintended network access.
 
-There are two ways to use this: the **CLI** (for terminal usage) and the **VS Code Dev Container** (for VS Code with the Claude Code extension).
+## Choose your setup
 
-## Quick start
+There are three ways to use this depending on your operating system and preferred workflow:
 
-### 1. Install Docker
+| Setup | OS | Best for |
+|---|---|---|
+| [Terminal (CLI)](#option-1-terminal-cli) | Linux or macOS | Developers who prefer the command line |
+| [VS Code Dev Container](#option-2-vs-code-dev-container) | Linux, macOS, or Windows | Developers who use VS Code |
+| [Terminal via WSL2](#option-3-terminal-on-windows-via-wsl2) | Windows | Developers who prefer the command line on Windows |
 
-If you don't have Docker installed:
+**Windows users:** The simplest path is [Option 2 (VS Code Dev Container)](#option-2-vs-code-dev-container) -- it works directly on Windows with Docker Desktop. If you prefer the terminal, you'll need to set up WSL2 first ([Option 3](#option-3-terminal-on-windows-via-wsl2)).
 
-- **Linux**: Follow [Docker's install guide](https://docs.docker.com/engine/install/) for your distro, then run `sudo usermod -aG docker $USER` and log out/in so you can run Docker without `sudo`.
-- **macOS**: Install [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/).
-- **Windows**: See [Windows setup (WSL2)](#windows-setup-wsl2) below.
+---
+
+## Option 1: Terminal (CLI)
+
+**Works on:** Linux, macOS
+
+This installs a `claude-docker` command that runs Claude Code inside a container from any terminal.
+
+### Prerequisites
+
+- **Docker** -- [Linux install guide](https://docs.docker.com/engine/install/) or [macOS Docker Desktop](https://docs.docker.com/desktop/install/mac-install/)
+- **git** and **jq** -- usually pre-installed on macOS; on Linux: `sudo apt install -y git jq`
+
+After installing Docker on Linux, run `sudo usermod -aG docker $USER` and log out/in so you can run Docker without `sudo`.
 
 Verify Docker is working:
 
@@ -20,7 +35,7 @@ Verify Docker is working:
 docker run hello-world
 ```
 
-### 2. Clone and install
+### Install
 
 ```bash
 git clone <this-repo>
@@ -28,14 +43,14 @@ cd claudecode-docker
 ./install.sh
 ```
 
-If the installer says `~/.local/bin` is not in your PATH, add it to your shell config:
+If the installer says `~/.local/bin` is not in your PATH, add it:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 3. Run
+### Run
 
 Navigate to any project directory and run:
 
@@ -43,56 +58,14 @@ Navigate to any project directory and run:
 claude-docker
 ```
 
-The first run builds the Docker image, which takes a few minutes. After that, subsequent runs start in seconds.
+The first run builds the Docker image, which takes a few minutes. After that, subsequent runs start in seconds. You'll be prompted to log in to your Claude Code account on first use.
 
-You'll be prompted to log in to your Claude Code account on first use.
-
-## Windows setup (WSL2)
-
-Claude Code and this project require a Linux environment. On Windows, use WSL2 (Windows Subsystem for Linux):
-
-### Install WSL2
-
-Open PowerShell as Administrator and run:
-
-```powershell
-wsl --install
-```
-
-This installs Ubuntu by default. Restart your computer when prompted, then open "Ubuntu" from the Start menu to finish setup (you'll create a username and password).
-
-### Install Docker
-
-The easiest option is [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) with WSL2 backend enabled (this is the default). After installing, open Docker Desktop settings and confirm **"Use the WSL 2 based engine"** is checked.
-
-Alternatively, install Docker directly inside WSL2 without Docker Desktop by following the [Docker Engine install guide for Ubuntu](https://docs.docker.com/engine/install/ubuntu/).
-
-Verify Docker works from your WSL2 terminal:
-
-```bash
-docker run hello-world
-```
-
-### Install git and jq
-
-Inside your WSL2 terminal:
-
-```bash
-sudo apt update && sudo apt install -y git jq
-```
-
-### Then follow the normal setup
-
-From here, follow [Clone and install](#2-clone-and-install) above. All commands should be run inside the WSL2 terminal, not PowerShell.
-
-Your Windows files are accessible at `/mnt/c/Users/<your-name>/` inside WSL2, but for best performance, keep your projects inside the WSL2 filesystem (e.g. `~/projects/`).
-
-## CLI usage
+### CLI options
 
 ```bash
 claude-docker                  # Start Claude Code (with proxy)
 claude-docker --no-firewall    # Start without proxy/firewall
-claude-docker --rebuild        # Force rebuild the Docker image (e.g. after updates)
+claude-docker --rebuild        # Force rebuild the Docker image
 claude-docker bash             # Drop into a bash shell inside the container
 ```
 
@@ -107,45 +80,134 @@ claude-docker --allow-dangerously-skip-permissions
 - Your current directory is mounted into the container, so Claude can read and edit your files directly.
 - A Squid proxy filters outbound traffic by domain name, only allowing approved services.
 - Direct outbound connections from Claude are blocked by iptables; all traffic must go through the proxy.
-- Container instructions (`/etc/claude-code/container.md`) are injected into Claude's context on every session start via a managed SessionStart hook, so Claude is aware of the container environment and proxy restrictions.
-- `~/.claude` and `~/.claude.json` are mounted into the container so your session, settings, and API keys persist.
+- Container instructions are injected into Claude's context on every session start via a managed hook, so Claude is aware of the proxy restrictions.
+- `~/.claude` and `~/.claude.json` are mounted so your session, settings, and API keys persist.
 - Files are mounted read-write. Claude can modify files in your current directory. Use version control.
 
-## VS Code Dev Container
+---
 
-### Setup
+## Option 2: VS Code Dev Container
 
-1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) in VS Code
-2. Install the dev container into your project:
+**Works on:** Linux, macOS, Windows
 
+This sets up a dev container in your project. VS Code runs inside the container with the Claude Code extension pre-installed. No terminal setup needed -- everything is handled by VS Code.
+
+### Prerequisites
+
+- **Docker Desktop** -- [Windows](https://docs.docker.com/desktop/install/windows-install/), [macOS](https://docs.docker.com/desktop/install/mac-install/), or [Linux](https://docs.docker.com/engine/install/)
+- **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+- **git** -- [Windows download](https://git-scm.com/download/win) (includes Git Bash), pre-installed on macOS/Linux
+
+Verify Docker is working by opening a terminal (PowerShell on Windows, Terminal on macOS/Linux) and running:
+
+```
+docker run hello-world
+```
+
+### Install
+
+Clone this repo and run the install script, passing your project directory:
+
+**Linux/macOS:**
 ```bash
+git clone <this-repo>
+cd claudecode-docker
 ./install-devcontainer.sh /path/to/your/project
 ```
 
-3. Open your project in VS Code
-4. When prompted "Reopen in Container", click yes -- or run **Dev Containers: Reopen in Container** from the command palette (`Ctrl+Shift+P`)
+**Windows (PowerShell):**
+```powershell
+git clone <this-repo>
+cd claudecode-docker
+bash install-devcontainer.sh C:\path\to\your\project
+```
 
-The script refuses to run if `.devcontainer/` already exists in the target project.
+> On Windows without Git Bash, you can manually copy the `.devcontainer/` folder from this repo into your project directory.
 
-The container will build, then the proxy and firewall will initialize via `postStartCommand`. The Claude Code extension is pre-installed.
+### Open in container
+
+1. Open your project in VS Code
+2. VS Code will detect the `.devcontainer/` folder and show a notification: **"Reopen in Container"** -- click it
+3. Alternatively, press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS) and select **Dev Containers: Reopen in Container**
+
+The first build takes a few minutes. After that, reopening is fast. The proxy and firewall initialize automatically when the container starts.
 
 ### Notes
 
-- **The proxy starts via `postStartCommand`.** VS Code waits for it to complete before showing the terminal (`waitFor: postStartCommand`). If it fails, you'll see an error notification.
-- **Your workspace is mounted at `/workspace`.**
-- **Your Claude config is mounted from the host.** `~/.claude` and `~/.claude.json` are bind-mounted so your session and settings persist across rebuilds.
-- **The container user matches your host user.** Paths and file ownership are consistent between host and container.
+- **Your workspace is mounted at `/workspace`** inside the container.
+- **Your Claude config is mounted from your home directory.** `~/.claude` and `~/.claude.json` are shared between host and container, so your session and settings persist across rebuilds.
+- **On Windows**, the container user defaults to `claude`. On Linux/macOS, it matches your host user for consistent file ownership.
+
+---
+
+## Option 3: Terminal on Windows (via WSL2)
+
+**Works on:** Windows 10/11
+
+If you prefer using Claude Code from the command line on Windows, you need WSL2 (Windows Subsystem for Linux). This gives you a Linux terminal inside Windows where the CLI works just like on Linux.
+
+> If you just want VS Code, skip this and use [Option 2](#option-2-vs-code-dev-container) instead -- it's simpler.
+
+### What is WSL2?
+
+WSL2 lets you run a real Linux environment inside Windows. It's built into Windows 10 and 11 -- you just need to turn it on. You'll get an Ubuntu terminal that works alongside your normal Windows apps.
+
+### Install WSL2
+
+Open **PowerShell as Administrator** (right-click PowerShell in the Start menu, select "Run as administrator") and run:
+
+```powershell
+wsl --install
+```
+
+Restart your computer when prompted. After restarting, open **Ubuntu** from the Start menu. You'll be asked to create a username and password -- this is your Linux account inside WSL2.
+
+### Install Docker
+
+Install [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/). After installing, open Docker Desktop settings and confirm **"Use the WSL 2 based engine"** is checked (it should be by default).
+
+Verify Docker works from your Ubuntu terminal:
+
+```bash
+docker run hello-world
+```
+
+### Install git and jq
+
+In your Ubuntu terminal:
+
+```bash
+sudo apt update && sudo apt install -y git jq
+```
+
+### Install and run
+
+From here, follow the same steps as [Option 1](#install). All commands should be run in the **Ubuntu terminal**, not PowerShell.
+
+```bash
+git clone <this-repo>
+cd claudecode-docker
+./install.sh
+```
+
+Then navigate to your project and run `claude-docker`.
+
+> Your Windows files are accessible at `/mnt/c/Users/<your-name>/` inside WSL2, but for best performance, keep your projects inside the WSL2 filesystem (e.g. `~/projects/`).
+
+---
 
 ## How the proxy works
 
-A Squid forward proxy runs inside the container. All HTTP/HTTPS requests from Claude go through the proxy, which only allows approved domains. Direct outbound connections are blocked by iptables using `owner` matching -- the proxy process runs as the `proxy` user, so iptables can allow its outbound traffic while blocking Claude's direct connections.
+A Squid forward proxy runs inside the container. All HTTP/HTTPS requests from Claude go through the proxy, which only allows approved domains. Direct outbound connections are blocked by iptables using `owner` matching -- the proxy process runs as a different user than Claude, so iptables can distinguish their traffic.
 
 On every container start, the init script verifies that:
 1. Allowed domains are reachable through the proxy
 2. Blocked domains are rejected by the proxy
 3. Direct connections (bypassing the proxy) are blocked by iptables
 
-Claude is also informed about the container environment via a managed SessionStart hook that injects `/etc/claude-code/container.md` into Claude's context. This file is generated at build time and includes the proxy allowlist.
+Claude is informed about the container environment via a managed SessionStart hook that injects `/etc/claude-code/container.md` into Claude's context. This file is generated at build time and includes the proxy allowlist.
+
+### Allowed domains
 
 | Service | Domains | Why |
 |---|---|---|
@@ -175,6 +237,5 @@ The image is based on Ubuntu 24.04 and includes:
 ## Caveats
 
 - **First build is slow.** The image includes many language runtimes (~3-4 GB). Subsequent runs reuse the cached image.
-- **`--no-firewall` disables all network restrictions.** Use this if you need access to services not on the allow list, but be aware there is no network sandbox.
-- **The container runs with `NET_ADMIN`, `NET_RAW`, `SETUID`, `SETGID`, and `AUDIT_WRITE` capabilities** when the proxy is active. `NET_ADMIN`/`NET_RAW` are needed for iptables, and `SETUID`/`SETGID`/`AUDIT_WRITE` are needed for `sudo`. These are dropped when using `--no-firewall`.
+- **`--no-firewall` disables all network restrictions** (CLI only). Use this if you need access to services not on the allow list, but be aware there is no network sandbox.
 - **IPv6 is not firewalled.** The current rules only cover IPv4. On most Docker setups this is fine since Docker defaults to IPv4 bridge networking.
