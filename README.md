@@ -1,8 +1,8 @@
 # Claude Code Docker
 
-Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) inside a Docker container with a network firewall. The firewall restricts internet access to only the services Claude needs (Anthropic API, GitHub, package registries), so Claude can work autonomously without risking unintended network access.
+Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) inside a Docker container with a network proxy. A Squid forward proxy restricts internet access to only the services Claude needs (Anthropic API, GitHub, package registries), so Claude can work autonomously without risking unintended network access.
 
-There are two ways to use this: the **CLI wrapper** (for terminal usage) and the **VS Code Dev Container** (for VS Code with the Claude Code extension).
+There are two ways to use this: the **CLI** (for terminal usage) and the **VS Code Dev Container** (for VS Code with the Claude Code extension).
 
 ## Quick start
 
@@ -90,8 +90,8 @@ Your Windows files are accessible at `/mnt/c/Users/<your-name>/` inside WSL2, bu
 ## CLI usage
 
 ```bash
-claude-docker                  # Start Claude Code (with firewall)
-claude-docker --no-firewall    # Start without firewall
+claude-docker                  # Start Claude Code (with proxy)
+claude-docker --no-firewall    # Start without proxy/firewall
 claude-docker --rebuild        # Force rebuild the Docker image (e.g. after updates)
 claude-docker bash             # Drop into a bash shell inside the container
 ```
@@ -105,7 +105,9 @@ claude-docker --allow-dangerously-skip-permissions
 ### How it works
 
 - Your current directory is mounted into the container, so Claude can read and edit your files directly.
-- The firewall restricts outbound network access to only approved services.
+- A Squid proxy filters outbound traffic by domain name, only allowing approved services.
+- Direct outbound connections from Claude are blocked by iptables; all traffic must go through the proxy.
+- Container instructions (`/etc/claude-code/container.md`) are injected into Claude's context on every session start via a managed SessionStart hook, so Claude is aware of the container environment and proxy restrictions.
 - `~/.claude` and `~/.claude.json` are mounted into the container so your session, settings, and API keys persist.
 - Files are mounted read-write. Claude can modify files in your current directory. Use version control.
 
@@ -125,31 +127,37 @@ claude-docker --allow-dangerously-skip-permissions
 
 The script refuses to run if `.devcontainer/` already exists in the target project.
 
-The container will build, then the firewall will initialize automatically. The Claude Code extension is pre-installed.
+The container will build, then the proxy and firewall will initialize via `postStartCommand`. The Claude Code extension is pre-installed.
 
 ### Notes
 
-- **The firewall runs on container start.** If it fails, the `postStartCommand` will error and you'll see a notification.
+- **The proxy starts via `postStartCommand`.** VS Code waits for it to complete before showing the terminal (`waitFor: postStartCommand`). If it fails, you'll see an error notification.
 - **Your workspace is mounted at `/workspace`.**
 - **Your Claude config is mounted from the host.** `~/.claude` and `~/.claude.json` are bind-mounted so your session and settings persist across rebuilds.
 - **The container user matches your host user.** Paths and file ownership are consistent between host and container.
 
-## What the firewall allows
+## How the proxy works
 
-All other outbound traffic is blocked. The firewall is verified on every start by confirming that `example.com` is unreachable and `api.github.com` is reachable.
+A Squid forward proxy runs inside the container. All HTTP/HTTPS requests from Claude go through the proxy, which only allows approved domains. Direct outbound connections are blocked by iptables using `owner` matching -- the proxy process runs as the `proxy` user, so iptables can allow its outbound traffic while blocking Claude's direct connections.
+
+On every container start, the init script verifies that:
+1. Allowed domains are reachable through the proxy
+2. Blocked domains are rejected by the proxy
+3. Direct connections (bypassing the proxy) are blocked by iptables
+
+Claude is also informed about the container environment via a managed SessionStart hook that injects `/etc/claude-code/container.md` into Claude's context. This file is generated at build time and includes the proxy allowlist.
 
 | Service | Domains | Why |
 |---|---|---|
-| Anthropic | `api.anthropic.com`, `statsig.anthropic.com`, `statsig.com`, `sentry.io` | Claude Code API and telemetry |
-| GitHub | All IPs from `api.github.com/meta`, `objects.githubusercontent.com` | Git operations, downloading releases |
-| npm | `registry.npmjs.org` | Node.js packages |
-| PyPI | `pypi.org`, `files.pythonhosted.org`, `astral.sh` | Python packages |
-| Crates.io | `crates.io`, `index.crates.io`, `static.crates.io` | Rust packages |
-| Rust toolchain | `static.rust-lang.org`, `sh.rustup.rs` | Rust installer |
-| Go | `proxy.golang.org`, `sum.golang.org`, `storage.googleapis.com` | Go modules |
-| NuGet | `api.nuget.org` | .NET packages |
-| VS Code | `marketplace.visualstudio.com`, `vscode.blob.core.windows.net`, `update.code.visualstudio.com` | Extensions and updates (dev container mode) |
-| DNS | Port 53 (UDP) | Name resolution |
+| Anthropic | `.anthropic.com`, `.statsig.com`, `.sentry.io` | Claude Code API and telemetry |
+| GitHub | `.github.com`, `.githubusercontent.com` | Git operations, downloading releases |
+| npm | `.npmjs.org` | Node.js packages |
+| PyPI | `.pypi.org`, `.pythonhosted.org`, `.astral.sh` | Python packages |
+| Crates.io | `.crates.io` | Rust packages |
+| Rust toolchain | `.rust-lang.org`, `.rustup.rs` | Rust installer |
+| Go | `.golang.org`, `storage.googleapis.com` | Go modules |
+| NuGet | `.nuget.org` | .NET packages |
+| VS Code | `.visualstudio.com`, `vscode.blob.core.windows.net` | Extensions and updates (dev container mode) |
 
 ## What's in the container
 
@@ -167,7 +175,6 @@ The image is based on Ubuntu 24.04 and includes:
 ## Caveats
 
 - **First build is slow.** The image includes many language runtimes (~3-4 GB). Subsequent runs reuse the cached image.
-- **The firewall resolves domain IPs at container start.** If a service changes its IPs while the container is running, connections to it may break. Restart the container to re-resolve.
 - **`--no-firewall` disables all network restrictions.** Use this if you need access to services not on the allow list, but be aware there is no network sandbox.
-- **The container runs with `NET_ADMIN` and `NET_RAW` capabilities** when the firewall is active (required for iptables). These are dropped when using `--no-firewall`.
+- **The container runs with `NET_ADMIN`, `NET_RAW`, `SETUID`, `SETGID`, and `AUDIT_WRITE` capabilities** when the proxy is active. `NET_ADMIN`/`NET_RAW` are needed for iptables, and `SETUID`/`SETGID`/`AUDIT_WRITE` are needed for `sudo`. These are dropped when using `--no-firewall`.
 - **IPv6 is not firewalled.** The current rules only cover IPv4. On most Docker setups this is fine since Docker defaults to IPv4 bridge networking.

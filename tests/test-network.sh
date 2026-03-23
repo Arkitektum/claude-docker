@@ -6,21 +6,30 @@ source "$DIR/lib.sh"
 echo "Network tests"
 echo "============="
 
-# Blocked sites
-assert_fail "example.com is blocked" \
-    curl --connect-timeout 5 -s https://example.com
+PROXY="http://127.0.0.1:3128"
 
-assert_fail "wikipedia.org is blocked" \
-    curl --connect-timeout 5 -s https://wikipedia.org
+# Direct connections blocked by iptables (even to allowed domains)
+assert_fail "direct connection to github is blocked" \
+    curl --noproxy "*" --connect-timeout 3 -sf https://api.github.com/zen
 
-# Allowed sites
-assert_pass "api.github.com is allowed" \
-    curl --connect-timeout 5 -sf https://api.github.com/zen
+assert_fail "direct connection to example.com is blocked" \
+    curl --noproxy "*" --connect-timeout 3 -sf https://example.com
 
-assert_pass "api.anthropic.com is reachable" \
-    curl --connect-timeout 5 -s -o /dev/null -w "%{http_code}" https://api.anthropic.com
+# Proxy blocks unauthorized domains
+assert_fail "example.com blocked through proxy" \
+    curl -x "$PROXY" --connect-timeout 5 -sf https://example.com
 
-# Package installs
+assert_fail "wikipedia.org blocked through proxy" \
+    curl -x "$PROXY" --connect-timeout 5 -sf https://wikipedia.org
+
+# Proxy allows authorized domains
+assert_pass "api.github.com allowed through proxy" \
+    curl -x "$PROXY" --connect-timeout 5 -sf https://api.github.com/zen
+
+assert_pass "api.anthropic.com reachable through proxy" \
+    curl -x "$PROXY" --connect-timeout 5 -s -o /dev/null -w "%{http_code}" https://api.anthropic.com
+
+# Package installs (use proxy via env vars set in Dockerfile)
 assert_pass "npm install (lodash)" \
     sh -c "cd $DIR/fixtures/node && rm -rf node_modules package-lock.json && npm install --no-audit --no-fund 2>&1"
 

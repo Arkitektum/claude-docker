@@ -21,6 +21,12 @@ if [ ! -d "$SOURCE" ]; then
   exit 1
 fi
 
-cp -r "$SOURCE" "$TARGET/.devcontainer"
+mkdir -p "$TARGET/.devcontainer"
+for f in Dockerfile devcontainer.json squid.conf init-proxy.sh entrypoint.sh \
+         setup-plugins.sh seed-plugins.sh container.md \
+         init-host init-host.cmd init-host.ps1; do
+  cp "$SOURCE/$f" "$TARGET/.devcontainer/$f"
+done
+
 echo "Installed .devcontainer/ into $TARGET"
 echo "Open the project in VS Code and reopen in container (Ctrl+Shift+P → 'Dev Containers: Reopen in Container')"

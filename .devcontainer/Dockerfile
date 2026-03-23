@@ -21,13 +21,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteract
     libssl3t64 \
     tzdata \
     zlib1g \
-    # Firewall
+    # Proxy and firewall
+    squid \
     sudo \
     iptables \
-    ipset \
     iproute2 \
     dnsutils \
-    aggregate \
     # Playwright chromium dependencies (ubuntu 24.04 x64)
     libasound2t64 \
     libatk-bridge2.0-0t64 \
@@ -117,28 +116,45 @@ RUN go install github.com/hashicorp/terraform-mcp-server/cmd/terraform-mcp-serve
 COPY --chown=${LOCAL_USER}:${LOCAL_USER} plugin-seed/seed/ /opt/claude-plugin-seed/
 COPY --chown=${LOCAL_USER}:${LOCAL_USER} setup-plugins.sh /usr/local/bin/
 
-# Firewall and managed settings
+# Squid proxy, entrypoint, and managed settings
 USER root
-COPY init-firewall.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/setup-plugins.sh && \
-    echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/firewall && \
-    chmod 0440 /etc/sudoers.d/firewall
+COPY squid.conf /etc/squid/squid.conf
+COPY init-proxy.sh /usr/local/bin/init-proxy.sh
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-plugins.sh && \
+    chmod 0444 /etc/squid/squid.conf && \
+    echo "${LOCAL_USER} ALL=(root) NOPASSWD:SETENV: /usr/local/bin/init-proxy.sh" > /etc/sudoers.d/init-proxy && \
+    chmod 0440 /etc/sudoers.d/init-proxy
 
-# Auto-enable seeded plugins via managed settings
+# Make build arg available at runtime for init-proxy.sh
+ENV LOCAL_USER=${LOCAL_USER}
+
+# Managed settings: enable plugins + inject container instructions via SessionStart hook
 RUN mkdir -p /etc/claude-code && \
-    echo '{"enabledPlugins":{"arkitektum-mandatory@arkitektum-marketplace":true}}' > /etc/claude-code/managed-settings.json
+    echo '{"enabledPlugins":{"arkitektum-mandatory@arkitektum-marketplace":true},"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"cat /etc/claude-code/container.md"}]}]}}' \
+    > /etc/claude-code/managed-settings.json
 
-# Container instructions injected into Claude's system prompt
+# Container documentation (available at /etc/claude-code/container.md)
 COPY container.md /tmp/container.md
-COPY claude-wrapper.sh /usr/local/bin/claude-wrapper
-RUN chmod +x /usr/local/bin/claude-wrapper && \
-    { cat /tmp/container.md; \
-      echo ""; echo "## Firewall allowlist"; echo ""; \
-      echo "GitHub IPs are fetched dynamically from api.github.com/meta. Additional allowed domains:"; echo ""; \
-      grep -oP '"\K[a-z0-9][-a-z0-9.]*\.[a-z]{2,}' /usr/local/bin/init-firewall.sh | sort -u | sed 's/^/- /' ; \
+RUN { cat /tmp/container.md; \
+      echo ""; echo "## Proxy allowlist"; echo ""; \
+      echo "Allowed domains (all subdomains included where prefixed with dot):"; echo ""; \
+      grep -oP 'dstdomain\s+\K\S+' /etc/squid/squid.conf | sort -u | sed 's/^/- /' ; \
     } > /etc/claude-code/container.md && \
     rm /tmp/container.md && \
     chmod 0444 /etc/claude-code/container.md
-USER ${LOCAL_USER}
 
+USER ${LOCAL_USER}
 WORKDIR /app
+
+# Proxy env vars for runtime. Must remain after all RUN commands
+# to avoid affecting the build (no proxy exists during build).
+ENV http_proxy="http://127.0.0.1:3128" \
+    https_proxy="http://127.0.0.1:3128" \
+    HTTP_PROXY="http://127.0.0.1:3128" \
+    HTTPS_PROXY="http://127.0.0.1:3128" \
+    no_proxy="localhost,127.0.0.1" \
+    NO_PROXY="localhost,127.0.0.1"
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["sleep", "infinity"]

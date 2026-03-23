@@ -27,12 +27,18 @@ assert_fail "cannot read /etc/shadow" \
 assert_fail "cannot write to /root" \
     touch /root/_test_probe
 
-# Firewall script should not be modifiable
-assert_fail "cannot modify firewall script" \
-    sh -c "echo x >> /usr/local/bin/init-firewall.sh"
+# Proxy and firewall files should not be modifiable
+assert_fail "cannot modify squid config" \
+    sh -c "echo x >> /etc/squid/squid.conf"
+
+assert_fail "cannot modify entrypoint" \
+    sh -c "echo x >> /usr/local/bin/entrypoint.sh"
+
+assert_fail "cannot modify init-proxy" \
+    sh -c "echo x >> /usr/local/bin/init-proxy.sh"
 
 assert_fail "cannot modify sudoers" \
-    sh -c "echo x >> /etc/sudoers.d/firewall"
+    sh -c "echo x >> /etc/sudoers.d/init-proxy"
 
 # User home should be writable
 assert_pass "can write to home dir" \

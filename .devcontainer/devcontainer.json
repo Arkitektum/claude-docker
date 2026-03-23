@@ -4,12 +4,15 @@
     "dockerfile": "Dockerfile",
     "args": {
       "TZ": "${localEnv:TZ:UTC}",
-      "LOCAL_USER": "${localEnv:USER}"
+      "LOCAL_USER": "${localEnv:USER:claude}"
     }
   },
   "runArgs": [
     "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
+    "--cap-add=NET_RAW",
+    "--cap-add=SETUID",
+    "--cap-add=SETGID",
+    "--cap-add=AUDIT_WRITE"
   ],
   "customizations": {
     "vscode": {
@@ -17,22 +20,21 @@
         "anthropic.claude-code"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "claudeCode.claudeProcessWrapper": "/usr/local/bin/claude-wrapper"
+        "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
   },
-  "remoteUser": "${localEnv:USER}",
+  "remoteUser": "${localEnv:USER:claude}",
   "containerEnv": {
-    "CLAUDE_CONFIG_DIR": "/home/${localEnv:USER}/.claude"
+    "CLAUDE_CONFIG_DIR": "/home/${localEnv:USER:claude}/.claude"
   },
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/${localEnv:USER}/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.claude.json,target=/home/${localEnv:USER}/.claude.json,type=bind,consistency=cached"
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/${localEnv:USER:claude}/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude.json,target=/home/${localEnv:USER:claude}/.claude.json,type=bind,consistency=cached"
   ],
-  "initializeCommand": "mkdir -p ~/.claude && touch ~/.claude.json && .devcontainer/seed-plugins.sh .devcontainer/plugin-seed",
+  "initializeCommand": ".devcontainer/init-host",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postStartCommand": "/usr/local/bin/setup-plugins.sh && sudo /usr/local/bin/init-firewall.sh",
+  "postStartCommand": "/usr/local/bin/entrypoint.sh true",
   "waitFor": "postStartCommand"
 }

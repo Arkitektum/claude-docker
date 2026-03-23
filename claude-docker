@@ -52,14 +52,14 @@ fi
 
 # Check if bash was requested
 CMD="claude"
-if [ "$1" = "bash" ]; then
+if [ "${1:-}" = "bash" ]; then
   CMD="bash"
   shift
 fi
 
 # Build docker run arguments
 RUN_ARGS=(
-  -it --rm
+  -it --rm --init
   -v "$(pwd):$(pwd)"
   -v "${HOME}/.claude:/home/${LOCAL_USER}/.claude"
   -v "${HOME}/.claude.json:/home/${LOCAL_USER}/.claude.json"
@@ -70,36 +70,21 @@ RUN_ARGS=(
 )
 
 if [ -n "$NO_FIREWALL" ]; then
-  # No firewall: host networking, drop all capabilities, run as host user
   RUN_ARGS+=(
-    --user "${LOCAL_UID}:${LOCAL_GID}"
     --security-opt=no-new-privileges:true
     --net=host
     --cap-drop=ALL
-    --entrypoint bash
+    -e DISABLE_FIREWALL=1
   )
-  PROMPT_ARGS=""
-  [ "$CMD" = "claude" ] && PROMPT_ARGS="--append-system-prompt-file /etc/claude-code/container.md"
-  docker run "${RUN_ARGS[@]}" "$IMAGE" -c "/usr/local/bin/setup-plugins.sh && exec $CMD $PROMPT_ARGS \"\$@\"" -- "$@"
 else
-  # Firewall: bridge networking, start as root for iptables, then exec as user
   RUN_ARGS+=(
-    --user root
     --cap-drop=ALL
     --cap-add=NET_ADMIN
     --cap-add=NET_RAW
+    --cap-add=SETUID
+    --cap-add=SETGID
+    --cap-add=AUDIT_WRITE
   )
-  CONTAINER_ID=$(docker run -d --init "${RUN_ARGS[@]}" "$IMAGE" sleep infinity)
-  trap "docker rm -f $CONTAINER_ID >/dev/null 2>&1" EXIT
-  if ! docker exec "$CONTAINER_ID" /usr/local/bin/init-firewall.sh; then
-    echo "Firewall init failed, refusing to start without firewall." >&2
-    echo "Use --no-firewall to skip." >&2
-    exit 1
-  fi
-  docker exec --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" /usr/local/bin/setup-plugins.sh
-  if [ "$CMD" = "claude" ]; then
-    docker exec -it --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" "$CMD" --append-system-prompt-file /etc/claude-code/container.md "$@"
-  else
-    docker exec -it --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" "$CMD" "$@"
-  fi
 fi
+
+docker run "${RUN_ARGS[@]}" "$IMAGE" "$CMD" "$@"

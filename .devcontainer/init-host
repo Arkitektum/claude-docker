@@ -1,0 +1,8 @@
+#!/bin/sh
+# Host-side initialization (Linux/macOS/WSL2).
+# Ensures Claude config exists and seeds marketplace plugins.
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+mkdir -p ~/.claude
+touch ~/.claude.json
+"$SCRIPT_DIR/seed-plugins.sh" "$SCRIPT_DIR/plugin-seed"

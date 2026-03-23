@@ -32,19 +32,29 @@ if ! docker build \
 fi
 
 echo
-echo "Starting container..."
+echo "Starting container (entrypoint sets up proxy and firewall)..."
 CONTAINER_ID=$(docker run -d --init --rm \
-    --user root \
     --cap-drop=ALL \
     --cap-add=NET_ADMIN \
     --cap-add=NET_RAW \
+    --cap-add=SETUID \
+    --cap-add=SETGID \
+    --cap-add=AUDIT_WRITE \
     -v "$REPO_DIR:$REPO_DIR" \
     -w "$REPO_DIR" \
-    "$IMAGE" sleep infinity)
+    "$IMAGE")
 
-echo "Initializing firewall..."
-if ! docker exec "$CONTAINER_ID" /usr/local/bin/init-firewall.sh; then
-    echo "Firewall init failed" >&2
+# Wait for entrypoint to finish proxy/firewall setup
+for i in $(seq 1 60); do
+    if docker exec "$CONTAINER_ID" test -f /tmp/.proxy-ready 2>/dev/null; then
+        echo "Proxy setup complete"
+        break
+    fi
+    sleep 0.5
+done
+if ! docker exec "$CONTAINER_ID" test -f /tmp/.proxy-ready 2>/dev/null; then
+    echo "ERROR: Proxy setup did not complete in time" >&2
+    docker logs "$CONTAINER_ID" >&2
     exit 1
 fi
 
