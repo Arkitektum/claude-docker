@@ -1,16 +1,17 @@
 #!/bin/bash
-# Clone the Arkitektum marketplace and build a Claude Code plugin seed directory.
+# Clone the Arkitektum marketplace and build a plugin seed directory.
 # Runs on the host before docker build — the seed dir ends up in the build context.
+# The seed is then used by setup-plugins.sh at container startup.
 set -e
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Error: jq is required but not installed" >&2
+  exit 1
+fi
 
 SEED_DIR="${1:?Usage: seed-plugins.sh <seed-dir>}"
 MARKETPLACE_REPO="https://github.com/Arkitektum/claude-code-marketplace.git"
-MARKETPLACE_OWNER="Arkitektum"
-MARKETPLACE_REPO_NAME="claude-code-marketplace"
 MARKETPLACE_CLONE="$SEED_DIR/clone"
-
-# Slug used by Claude Code for filesystem paths (owner-repo)
-MARKETPLACE_SLUG="${MARKETPLACE_OWNER}-${MARKETPLACE_REPO_NAME}"
 
 # Clone or update marketplace
 if [ -d "$MARKETPLACE_CLONE/.git" ]; then
@@ -23,17 +24,13 @@ fi
 MARKETPLACE_JSON="$MARKETPLACE_CLONE/.claude-plugin/marketplace.json"
 MARKETPLACE_NAME=$(jq -r '.name' "$MARKETPLACE_JSON")
 
-# Build seed directory structure
-mkdir -p "$SEED_DIR/seed/marketplaces" "$SEED_DIR/seed/cache"
-rm -rf "$SEED_DIR/seed/marketplaces/$MARKETPLACE_SLUG"
-cp -r "$MARKETPLACE_CLONE" "$SEED_DIR/seed/marketplaces/$MARKETPLACE_SLUG"
-
-# Register marketplace
-jq -n --arg name "$MARKETPLACE_NAME" --arg owner "$MARKETPLACE_OWNER" --arg repo "${MARKETPLACE_OWNER}/${MARKETPLACE_REPO_NAME}" \
-  '{($name): {"source": {"source": "github", "repo": $repo}}}' \
-  > "$SEED_DIR/seed/known_marketplaces.json"
+# Copy marketplace content
+mkdir -p "$SEED_DIR/seed/marketplaces"
+rm -rf "$SEED_DIR/seed/marketplaces/$MARKETPLACE_NAME"
+cp -r "$MARKETPLACE_CLONE" "$SEED_DIR/seed/marketplaces/$MARKETPLACE_NAME"
 
 # Populate plugin cache from relative-path plugins
+mkdir -p "$SEED_DIR/seed/cache"
 jq -r '.plugins[] | select(.source | type == "string" and startswith("./")) | "\(.name)\t\(.version // "0.0.0")\t\(.source)"' "$MARKETPLACE_JSON" |
 while IFS=$'\t' read -r name version source; do
   plugin_src="$MARKETPLACE_CLONE/$source"

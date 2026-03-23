@@ -17,7 +17,8 @@
         "anthropic.claude-code"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "claudeCode.claudeProcessWrapper": "/usr/local/bin/claude-wrapper"
       }
     }
   },
@@ -32,6 +33,6 @@
   "initializeCommand": "mkdir -p ~/.claude && touch ~/.claude.json && .devcontainer/seed-plugins.sh .devcontainer/plugin-seed",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "postStartCommand": "/usr/local/bin/setup-plugins.sh && sudo /usr/local/bin/init-firewall.sh",
   "waitFor": "postStartCommand"
 }

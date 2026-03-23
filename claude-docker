@@ -76,9 +76,11 @@ if [ -n "$NO_FIREWALL" ]; then
     --security-opt=no-new-privileges:true
     --net=host
     --cap-drop=ALL
-    --entrypoint "$CMD"
+    --entrypoint bash
   )
-  docker run "${RUN_ARGS[@]}" "$IMAGE" "$@"
+  PROMPT_ARGS=""
+  [ "$CMD" = "claude" ] && PROMPT_ARGS="--append-system-prompt-file /etc/claude-code/container.md"
+  docker run "${RUN_ARGS[@]}" "$IMAGE" -c "/usr/local/bin/setup-plugins.sh && exec $CMD $PROMPT_ARGS \"\$@\"" -- "$@"
 else
   # Firewall: bridge networking, start as root for iptables, then exec as user
   RUN_ARGS+=(
@@ -94,5 +96,10 @@ else
     echo "Use --no-firewall to skip." >&2
     exit 1
   fi
-  docker exec -it --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" "$CMD" "$@"
+  docker exec --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" /usr/local/bin/setup-plugins.sh
+  if [ "$CMD" = "claude" ]; then
+    docker exec -it --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" "$CMD" --append-system-prompt-file /etc/claude-code/container.md "$@"
+  else
+    docker exec -it --user "${LOCAL_UID}:${LOCAL_GID}" "$CONTAINER_ID" "$CMD" "$@"
+  fi
 fi

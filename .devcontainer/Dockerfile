@@ -113,20 +113,32 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # Install Terraform MCP Server
 RUN go install github.com/hashicorp/terraform-mcp-server/cmd/terraform-mcp-server@latest
 
-# Seed marketplace plugins (built by seed-plugins.sh on host before docker build)
+# Marketplace plugin seed (built by seed-plugins.sh on host before docker build)
 COPY --chown=${LOCAL_USER}:${LOCAL_USER} plugin-seed/seed/ /opt/claude-plugin-seed/
-ENV CLAUDE_CODE_PLUGIN_SEED_DIR=/opt/claude-plugin-seed
+COPY --chown=${LOCAL_USER}:${LOCAL_USER} setup-plugins.sh /usr/local/bin/
 
 # Firewall and managed settings
 USER root
 COPY init-firewall.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/init-firewall.sh && \
+RUN chmod +x /usr/local/bin/init-firewall.sh /usr/local/bin/setup-plugins.sh && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/firewall && \
     chmod 0440 /etc/sudoers.d/firewall
 
-# Register marketplace and auto-enable plugins via managed settings
+# Auto-enable seeded plugins via managed settings
 RUN mkdir -p /etc/claude-code && \
-    echo '{"extraKnownMarketplaces":{"arkitektum-marketplace":{"source":{"source":"github","repo":"Arkitektum/claude-code-marketplace"}}},"enabledPlugins":{"arkitektum-mandatory@arkitektum-marketplace":true}}' > /etc/claude-code/managed-settings.json
+    echo '{"enabledPlugins":{"arkitektum-mandatory@arkitektum-marketplace":true}}' > /etc/claude-code/managed-settings.json
+
+# Container instructions injected into Claude's system prompt
+COPY container.md /tmp/container.md
+COPY claude-wrapper.sh /usr/local/bin/claude-wrapper
+RUN chmod +x /usr/local/bin/claude-wrapper && \
+    { cat /tmp/container.md; \
+      echo ""; echo "## Firewall allowlist"; echo ""; \
+      echo "GitHub IPs are fetched dynamically from api.github.com/meta. Additional allowed domains:"; echo ""; \
+      grep -oP '"\K[a-z0-9][-a-z0-9.]*\.[a-z]{2,}' /usr/local/bin/init-firewall.sh | sort -u | sed 's/^/- /' ; \
+    } > /etc/claude-code/container.md && \
+    rm /tmp/container.md && \
+    chmod 0444 /etc/claude-code/container.md
 USER ${LOCAL_USER}
 
 WORKDIR /app
