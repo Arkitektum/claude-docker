@@ -6,18 +6,26 @@ if [ -f /tmp/.proxy-ready ]; then
     exit 0
 fi
 
-# --- Banner helpers ---
-CYAN='\033[36m'
+# --- Print logo ----
+
+echo
+printf '\033[91m'
+  cat << 'EOF'
+   █████╗  ██████╗  ██╗  ██╗ ██╗ ████████╗ ███████╗ ██╗  ██╗ ████████╗ ██╗   ██╗ ███╗   ███╗
+   ██╔══██╗ ██╔══██╗ ██║ ██╔╝ ██║ ╚══██╔══╝ ██╔════╝ ██║ ██╔╝ ╚══██╔══╝ ██║   ██║ ████╗ ████║
+   ███████║ ██████╔╝ █████╔╝  ██║    ██║    █████╗   █████╔╝     ██║    ██║   ██║ ██╔████╔██║
+   ██╔══██║ ██╔══██╗ ██╔═██╗  ██║    ██║    ██╔══╝   ██╔═██╗     ██║    ██║   ██║ ██║╚██╔╝██║
+   ██║  ██║ ██║  ██║ ██║  ██╗ ██║    ██║    ███████╗ ██║  ██╗    ██║    ╚██████╔╝ ██║ ╚═╝ ██║
+   ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝    ╚═╝     ╚═════╝  ╚═╝     ╚═╝
+EOF
+printf '\033[0m'
+
+# --- Status helpers ---
+RED='\033[91m'
 GREEN='\033[32m'
 BOLD='\033[1m'
 RESET='\033[0m'
-B="${CYAN}${BOLD}"
-R="${RESET}"
-banner_line() { printf "${CYAN}║${R}  %-48s ${CYAN}║${R}\n" "$1"; }
-
-echo -e "${B}╔═══════════════════════════════════════════════════╗${R}"
-echo -e "${B}║            ⬡  Proxy & Firewall Setup  ⬡           ║${R}"
-echo -e "${B}╠═══════════════════════════════════════════════════╣${R}"
+status_line() { echo -e "  ${RED}$1${RESET}"; }
 
 # --- Start squid proxy ---
 squid -f /etc/squid/squid.conf -N -d 2 2>/dev/null &
@@ -41,7 +49,7 @@ if ! ss -tlnp 2>/dev/null | grep -q ':3128'; then
     cat /var/log/squid/cache.log 2>/dev/null >&2
     exit 1
 fi
-banner_line "Squid proxy started"
+status_line "Squid proxy started"
 
 # --- Setup iptables ---
 # Preserve Docker internal DNS NAT rules
@@ -91,28 +99,26 @@ iptables -P FORWARD DROP
 iptables -P OUTPUT DROP
 iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 
-banner_line "Firewall configured"
+status_line "Firewall configured"
 
 # --- Verification ---
 if ! curl -sf -x http://127.0.0.1:3128 --connect-timeout 5 https://api.github.com/zen >/dev/null 2>&1; then
     echo "ERROR: Cannot reach api.github.com through proxy" >&2
     exit 1
 fi
-banner_line "Verified: allowed domain reachable through proxy"
+status_line "Verified: allowed domain reachable through proxy"
 
 if curl -sf -x http://127.0.0.1:3128 --connect-timeout 5 https://example.com >/dev/null 2>&1; then
     echo "ERROR: example.com should be blocked by proxy" >&2
     exit 1
 fi
-banner_line "Verified: blocked domain rejected by proxy"
+status_line "Verified: blocked domain rejected by proxy"
 
 if su -s /bin/sh "$CLAUDE_USER" -c 'curl -sf --noproxy "*" --connect-timeout 3 https://api.github.com/zen' >/dev/null 2>&1; then
     echo "ERROR: Direct outbound connection should be blocked" >&2
     exit 1
 fi
-banner_line "Verified: direct connections blocked by firewall"
+status_line "Verified: direct connections blocked by firewall"
 
 touch /tmp/.proxy-ready
-echo -e "${B}╠═══════════════════════════════════════════════════╣${R}"
-echo -e "${B}║${R}  ${GREEN}${BOLD}        ✔  Proxy and firewall ready  ✔${R}           ${B}║${R}"
-echo -e "${B}╚═══════════════════════════════════════════════════╝${R}"
+echo -e "\n  ${GREEN}${BOLD}Proxy and firewall ready${RESET}\n"
