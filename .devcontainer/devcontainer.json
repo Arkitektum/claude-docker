@@ -29,8 +29,8 @@
     "CLAUDE_CONFIG_DIR": "/home/${localEnv:USER:claude}/.claude"
   },
   "mounts": [
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/${localEnv:USER:claude}/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude.json,target=/home/${localEnv:USER:claude}/.claude.json,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.claude,target=/home/${localEnv:USER:claude}/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/${localEnv:USER:claude}/.claude.json,type=bind,consistency=cached"
   ],
   "initializeCommand": ".devcontainer/init-host",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",

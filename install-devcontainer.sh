@@ -24,7 +24,7 @@ fi
 mkdir -p "$TARGET/.devcontainer"
 for f in Dockerfile devcontainer.json squid.conf init-proxy.sh entrypoint.sh \
          setup-plugins.sh seed-plugins.sh container.md \
-         init-host init-host.cmd init-host.ps1; do
+         init-host; do
   cp "$SOURCE/$f" "$TARGET/.devcontainer/$f"
 done
 

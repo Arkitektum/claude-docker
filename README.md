@@ -4,15 +4,12 @@ Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) inside a Docke
 
 ## Choose your setup
 
-There are three ways to use this depending on your operating system and preferred workflow:
-
 | Setup | OS | Best for |
 |---|---|---|
-| [Terminal (CLI)](#option-1-terminal-cli) | Linux or macOS | Developers who prefer the command line |
-| [VS Code Dev Container](#option-2-vs-code-dev-container) | Linux, macOS, or Windows | Developers who use VS Code |
-| [Terminal via WSL2](#option-3-terminal-on-windows-via-wsl2) | Windows | Developers who prefer the command line on Windows |
+| [Terminal (CLI)](#option-1-terminal-cli) | Linux, macOS, or Windows (WSL2) | Developers who prefer the command line |
+| [VS Code Dev Container](#option-2-vs-code-dev-container) | Linux, macOS, or Windows (WSL2) | Developers who use VS Code |
 
-**Windows users:** The simplest path is [Option 2 (VS Code Dev Container)](#option-2-vs-code-dev-container) -- it works directly on Windows with Docker Desktop. If you prefer the terminal, you'll need to set up WSL2 first ([Option 3](#option-3-terminal-on-windows-via-wsl2)).
+**Windows users:** WSL2 is required. See [WSL2 setup](#windows-wsl2-setup) below before proceeding.
 
 ---
 
@@ -88,19 +85,19 @@ claude-docker --allow-dangerously-skip-permissions
 
 ## Option 2: VS Code Dev Container
 
-**Works on:** Linux, macOS, Windows
+**Works on:** Linux, macOS, Windows (WSL2)
 
 This sets up a dev container in your project. VS Code runs inside the container with the Claude Code extension pre-installed. No terminal setup needed -- everything is handled by VS Code.
 
 ### Prerequisites
 
-- **Docker Desktop** -- [Windows](https://docs.docker.com/desktop/install/windows-install/), [macOS](https://docs.docker.com/desktop/install/mac-install/), or [Linux](https://docs.docker.com/engine/install/)
+- **Docker Desktop** -- [macOS](https://docs.docker.com/desktop/install/mac-install/) or [Linux](https://docs.docker.com/engine/install/). Windows users: install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) and enable the WSL 2 backend.
 - **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-- **git** -- [Windows download](https://git-scm.com/download/win) (includes Git Bash), pre-installed on macOS/Linux
+- **git** -- pre-installed on macOS/Linux; on WSL2: `sudo apt install -y git`
 
-Verify Docker is working by opening a terminal (PowerShell on Windows, Terminal on macOS/Linux) and running:
+Verify Docker is working:
 
-```
+```bash
 docker run hello-world
 ```
 
@@ -108,21 +105,11 @@ docker run hello-world
 
 Clone this repo and run the install script, passing your project directory:
 
-**Linux/macOS:**
 ```bash
 git clone <this-repo>
 cd claudecode-docker
 ./install-devcontainer.sh /path/to/your/project
 ```
-
-**Windows (PowerShell):**
-```powershell
-git clone <this-repo>
-cd claudecode-docker
-bash install-devcontainer.sh C:\path\to\your\project
-```
-
-> On Windows without Git Bash, you can manually copy the `.devcontainer/` folder from this repo into your project directory.
 
 ### Open in container
 
@@ -136,35 +123,26 @@ The first build takes a few minutes. After that, reopening is fast. The proxy an
 
 - **Your workspace is mounted at `/workspace`** inside the container.
 - **Your Claude config is mounted from your home directory.** `~/.claude` and `~/.claude.json` are shared between host and container, so your session and settings persist across rebuilds.
-- **On Windows**, the container user defaults to `claude`. On Linux/macOS, it matches your host user for consistent file ownership.
 
 ---
 
-## Option 3: Terminal on Windows (via WSL2)
+## Windows: WSL2 setup
 
-**Works on:** Windows 10/11
-
-If you prefer using Claude Code from the command line on Windows, you need WSL2 (Windows Subsystem for Linux). This gives you a Linux terminal inside Windows where the CLI works just like on Linux.
-
-> If you just want VS Code, skip this and use [Option 2](#option-2-vs-code-dev-container) instead -- it's simpler.
-
-### What is WSL2?
-
-WSL2 lets you run a real Linux environment inside Windows. It's built into Windows 10 and 11 -- you just need to turn it on. You'll get an Ubuntu terminal that works alongside your normal Windows apps.
+WSL2 (Windows Subsystem for Linux) is required for running this project on Windows. It gives you a real Linux environment inside Windows 10/11.
 
 ### Install WSL2
 
-Open **PowerShell as Administrator** (right-click PowerShell in the Start menu, select "Run as administrator") and run:
+Open **PowerShell as Administrator** and run:
 
 ```powershell
 wsl --install
 ```
 
-Restart your computer when prompted. After restarting, open **Ubuntu** from the Start menu. You'll be asked to create a username and password -- this is your Linux account inside WSL2.
+Restart your computer when prompted. After restarting, open **Ubuntu** from the Start menu and create a username and password.
 
 ### Install Docker
 
-Install [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/). After installing, open Docker Desktop settings and confirm **"Use the WSL 2 based engine"** is checked (it should be by default).
+Install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/). In Docker Desktop settings, confirm **"Use the WSL 2 based engine"** is checked (default).
 
 Verify Docker works from your Ubuntu terminal:
 
@@ -172,25 +150,15 @@ Verify Docker works from your Ubuntu terminal:
 docker run hello-world
 ```
 
-### Install git and jq
-
-In your Ubuntu terminal:
+### Install dependencies
 
 ```bash
 sudo apt update && sudo apt install -y git jq
 ```
 
-### Install and run
+### Next steps
 
-From here, follow the same steps as [Option 1](#install). All commands should be run in the **Ubuntu terminal**, not PowerShell.
-
-```bash
-git clone <this-repo>
-cd claudecode-docker
-./install.sh
-```
-
-Then navigate to your project and run `claude-docker`.
+Run all commands from your **Ubuntu terminal**, not PowerShell. Follow [Option 1](#option-1-terminal-cli) or [Option 2](#option-2-vs-code-dev-container) above.
 
 > Your Windows files are accessible at `/mnt/c/Users/<your-name>/` inside WSL2, but for best performance, keep your projects inside the WSL2 filesystem (e.g. `~/projects/`).
 

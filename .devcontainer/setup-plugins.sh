@@ -1,7 +1,7 @@
 #!/bin/bash
 # Register the Arkitektum marketplace and populate the plugin cache if not already present.
-# Runs inside the container at startup — writes to ~/.claude/plugins/ (bind-mounted from host).
-# Only adds entries that don't already exist — never overwrites existing user config.
+# Runs inside the container at startup - writes to ~/.claude/plugins/ (bind-mounted from host).
+# Only adds entries that don't already exist - never overwrites existing user config.
 set -e
 
 PLUGIN_DIR="${HOME}/.claude/plugins"
