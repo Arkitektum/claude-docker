@@ -99,6 +99,20 @@ iptables -P FORWARD DROP
 iptables -P OUTPUT DROP
 iptables -A OUTPUT -j REJECT --reject-with icmp-admin-prohibited
 
+# IPv6: mirror IPv4 policy (loopback + proxy user allowed, claude user blocked)
+if command -v ip6tables &>/dev/null; then
+    ip6tables -F 2>/dev/null || true
+    ip6tables -A INPUT -i lo -j ACCEPT
+    ip6tables -A OUTPUT -o lo -j ACCEPT
+    ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    ip6tables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+    ip6tables -A OUTPUT -m owner --uid-owner proxy -j ACCEPT
+    ip6tables -A OUTPUT -m owner --uid-owner "$CLAUDE_UID" -j REJECT
+    ip6tables -P INPUT DROP
+    ip6tables -P FORWARD DROP
+    ip6tables -P OUTPUT DROP
+fi
+
 status_line "Firewall configured"
 
 # --- Verification ---

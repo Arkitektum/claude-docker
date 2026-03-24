@@ -15,6 +15,10 @@ assert_fail "direct connection to github is blocked" \
 assert_fail "direct connection to example.com is blocked" \
     curl --noproxy "*" --connect-timeout 3 -sf https://example.com
 
+# Direct IPv6 connections blocked
+assert_fail "direct IPv6 connection is blocked" \
+    curl -6 --noproxy "*" --connect-timeout 3 -sf https://api.github.com/zen
+
 # Proxy blocks unauthorized domains
 assert_fail "example.com blocked through proxy" \
     curl -x "$PROXY" --connect-timeout 5 -sf https://example.com
