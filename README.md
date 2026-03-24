@@ -188,6 +188,7 @@ Claude is informed about the container environment via a managed SessionStart ho
 | Go | `.golang.org`, `storage.googleapis.com` | Go modules |
 | NuGet | `.nuget.org` | .NET packages |
 | VS Code | `.visualstudio.com`, `vscode.blob.core.windows.net` | Extensions and updates (dev container mode) |
+| MCP servers | `mcp.exa.ai`, `mcp.context7.com`, `instances-mcp.vantage.sh` | Remote MCP services |
 
 ## What's in the container
 
