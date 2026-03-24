@@ -29,18 +29,18 @@ if (Test-Path (Join-Path $CloneDir ".git")) {
     git clone --depth 1 $MarketplaceRepo $CloneDir
 }
 
-$MarketplaceJson = Join-Path $CloneDir ".claude-plugin" "marketplace.json"
+$MarketplaceJson = Join-Path (Join-Path $CloneDir ".claude-plugin") "marketplace.json"
 $Marketplace = Get-Content $MarketplaceJson -Raw | ConvertFrom-Json
 $MarketplaceName = $Marketplace.name
 
 # Copy marketplace content
-$MpDst = Join-Path $SeedDir "seed" "marketplaces" $MarketplaceName
+$MpDst = Join-Path (Join-Path (Join-Path $SeedDir "seed") "marketplaces") $MarketplaceName
 if (Test-Path $MpDst) { Remove-Item -Recurse -Force $MpDst }
 New-Item -ItemType Directory -Path (Split-Path $MpDst) -Force | Out-Null
 Copy-Item -Recurse $CloneDir $MpDst
 
 # Populate plugin cache from relative-path plugins
-$CacheBase = Join-Path $SeedDir "seed" "cache"
+$CacheBase = Join-Path (Join-Path $SeedDir "seed") "cache"
 if (-not (Test-Path $CacheBase)) { New-Item -ItemType Directory -Path $CacheBase | Out-Null }
 
 foreach ($plugin in $Marketplace.plugins) {
@@ -49,7 +49,7 @@ foreach ($plugin in $Marketplace.plugins) {
         $version = if ($plugin.version) { $plugin.version } else { "0.0.0" }
         $pluginSrc = Join-Path $CloneDir $plugin.source
         if (Test-Path $pluginSrc) {
-            $cacheDst = Join-Path $CacheBase $MarketplaceName $name $version
+            $cacheDst = Join-Path (Join-Path (Join-Path $CacheBase $MarketplaceName) $name) $version
             if (Test-Path $cacheDst) { Remove-Item -Recurse -Force $cacheDst }
             New-Item -ItemType Directory -Path $cacheDst -Force | Out-Null
             Copy-Item -Recurse (Join-Path $pluginSrc "*") $cacheDst
