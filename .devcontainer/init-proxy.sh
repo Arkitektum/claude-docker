@@ -13,11 +13,11 @@ BOLD='\033[1m'
 RESET='\033[0m'
 B="${CYAN}${BOLD}"
 R="${RESET}"
-banner_line() { printf "${CYAN}║${R}  %-47s ${CYAN}║${R}\n" "$1"; }
+banner_line() { printf "${CYAN}║${R}  %-48s ${CYAN}║${R}\n" "$1"; }
 
-echo -e "${B}╔══════════════════════════════════════════════════╗${R}"
-echo -e "${B}║         ⬡  Proxy & Firewall Setup  ⬡            ║${R}"
-echo -e "${B}╠══════════════════════════════════════════════════╣${R}"
+echo -e "${B}╔═══════════════════════════════════════════════════╗${R}"
+echo -e "${B}║            ⬡  Proxy & Firewall Setup  ⬡           ║${R}"
+echo -e "${B}╠═══════════════════════════════════════════════════╣${R}"
 
 # --- Start squid proxy ---
 squid -f /etc/squid/squid.conf -N -d 2 2>/dev/null &
@@ -113,6 +113,6 @@ fi
 banner_line "Verified: direct connections blocked by firewall"
 
 touch /tmp/.proxy-ready
-echo -e "${B}╠══════════════════════════════════════════════════╣${R}"
-echo -e "${B}║${R}  ${GREEN}${BOLD}    ✔  Proxy and firewall ready  ✔${R}            ${B}║${R}"
-echo -e "${B}╚══════════════════════════════════════════════════╝${R}"
+echo -e "${B}╠═══════════════════════════════════════════════════╣${R}"
+echo -e "${B}║${R}  ${GREEN}${BOLD}        ✔  Proxy and firewall ready  ✔${R}           ${B}║${R}"
+echo -e "${B}╚═══════════════════════════════════════════════════╝${R}"
