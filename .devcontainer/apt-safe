@@ -1,0 +1,75 @@
+#!/bin/bash
+# Root wrapper for apt operations. Called via sudoers.
+# Validates all input before passing to apt to prevent command injection.
+set -euo pipefail
+
+LOG="/tmp/apt-safe.log"
+
+# Force apt through the container proxy
+export http_proxy="http://127.0.0.1:3128"
+export https_proxy="http://127.0.0.1:3128"
+
+# Redirect apt cache/lists to /tmp to avoid permission issues with _apt sandbox
+APT_OPTS=(-o APT::Sandbox::User=root -o Dir::Cache=/tmp/apt-cache -o Dir::State::lists=/tmp/apt-lists)
+mkdir -p /tmp/apt-cache/archives/partial /tmp/apt-lists/partial /tmp/apt-lists/auxfiles
+
+# Strict package name validation: dpkg policy allows [a-z0-9][a-z0-9.+\-]+
+# We also allow architecture qualifiers (e.g., package:amd64)
+valid_package_name() {
+    [[ "$1" =~ ^[a-z0-9][a-z0-9.+\-]+(:[a-z0-9]+)?$ ]]
+}
+
+ACTION="${1:?Usage: apt-safe <install|update|search|list-installed> [packages...]}"
+shift
+
+case "$ACTION" in
+    install)
+        if [ $# -eq 0 ]; then
+            echo "Error: no packages specified" >&2
+            exit 1
+        fi
+        for pkg in "$@"; do
+            if ! valid_package_name "$pkg"; then
+                echo "Error: invalid package name: $pkg" >&2
+                exit 1
+            fi
+        done
+        if DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" install -y --no-install-recommends "$@" > "$LOG" 2>&1; then
+            echo "Installed: $*"
+        else
+            echo "Failed to install: $*. See $LOG for details." >&2
+            tail -5 "$LOG" >&2
+            exit 1
+        fi
+        ;;
+    update)
+        if apt-get "${APT_OPTS[@]}" update > "$LOG" 2>&1; then
+            echo "Package index updated."
+        else
+            echo "Failed to update package index. See $LOG for details." >&2
+            tail -5 "$LOG" >&2
+            exit 1
+        fi
+        ;;
+    search)
+        if [ $# -eq 0 ]; then
+            echo "Error: no search term specified" >&2
+            exit 1
+        fi
+        # Sanitize: only allow alphanumeric, hyphens, dots, and spaces in search
+        TERM="$*"
+        if [[ "$TERM" =~ [^a-zA-Z0-9.+\ \-] ]]; then
+            echo "Error: invalid characters in search term" >&2
+            exit 1
+        fi
+        apt-cache "${APT_OPTS[@]}" search "$TERM" 2>/dev/null
+        ;;
+    list-installed)
+        dpkg-query -W -f='${Package}\t${Version}\t${Status}\n' 2>/dev/null | grep "install ok installed" | cut -f1,2
+        ;;
+    *)
+        echo "Error: unknown action: $ACTION" >&2
+        echo "Valid actions: install, update, search, list-installed" >&2
+        exit 1
+        ;;
+esac

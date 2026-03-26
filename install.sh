@@ -5,19 +5,18 @@ set -e
 BIN_DIR="${HOME}/.local/bin"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claude-docker"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE="$SCRIPT_DIR/.devcontainer"
 
 # Create directories
 mkdir -p "$BIN_DIR" "$DATA_DIR"
 
-# Install build context
-cp "$SCRIPT_DIR/.devcontainer/Dockerfile" "$DATA_DIR/Dockerfile"
-cp "$SCRIPT_DIR/.devcontainer/squid.conf" "$DATA_DIR/squid.conf"
-cp "$SCRIPT_DIR/.devcontainer/init-proxy.sh" "$DATA_DIR/init-proxy.sh"
-cp "$SCRIPT_DIR/.devcontainer/entrypoint.sh" "$DATA_DIR/entrypoint.sh"
-cp "$SCRIPT_DIR/.devcontainer/seed-plugins.sh" "$DATA_DIR/seed-plugins.sh"
-cp "$SCRIPT_DIR/.devcontainer/setup-plugins.sh" "$DATA_DIR/setup-plugins.sh"
-cp "$SCRIPT_DIR/.devcontainer/container.md" "$DATA_DIR/container.md"
-chmod +x "$DATA_DIR/seed-plugins.sh" "$DATA_DIR/setup-plugins.sh" "$DATA_DIR/init-proxy.sh" "$DATA_DIR/entrypoint.sh"
+# Install build context (everything Docker needs)
+for f in Dockerfile squid.conf init-proxy.sh entrypoint.sh \
+         seed-plugins.sh setup-plugins.sh container.md apt-safe; do
+  cp "$SOURCE/$f" "$DATA_DIR/$f"
+done
+chmod +x "$DATA_DIR/init-proxy.sh" "$DATA_DIR/entrypoint.sh" \
+         "$DATA_DIR/seed-plugins.sh" "$DATA_DIR/setup-plugins.sh"
 
 # Install CLI script
 cp "$SCRIPT_DIR/claude-docker" "$BIN_DIR/claude-docker"

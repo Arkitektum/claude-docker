@@ -22,8 +22,10 @@ if [ ! -d "$SOURCE" ]; then
 fi
 
 mkdir -p "$TARGET/.devcontainer"
+
+# Copy top-level files
 for f in Dockerfile devcontainer.json squid.conf init-proxy.sh entrypoint.sh \
-         setup-plugins.sh seed-plugins.sh container.md \
+         setup-plugins.sh seed-plugins.sh container.md apt-safe \
          init-host; do
   cp "$SOURCE/$f" "$TARGET/.devcontainer/$f"
 done

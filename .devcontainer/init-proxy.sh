@@ -8,17 +8,13 @@ fi
 
 # --- Print logo ----
 
-echo
-printf '\033[91m'
-  cat << 'EOF'
+printf '\n\033[91m%s\033[0m\n' "\
     █████╗  ██████╗  ██╗  ██╗ ██╗ ████████╗ ███████╗ ██╗  ██╗ ████████╗ ██╗   ██╗ ███╗   ███╗
    ██╔══██╗ ██╔══██╗ ██║ ██╔╝ ██║ ╚══██╔══╝ ██╔════╝ ██║ ██╔╝ ╚══██╔══╝ ██║   ██║ ████╗ ████║
    ███████║ ██████╔╝ █████╔╝  ██║    ██║    █████╗   █████╔╝     ██║    ██║   ██║ ██╔████╔██║
    ██╔══██║ ██╔══██╗ ██╔═██╗  ██║    ██║    ██╔══╝   ██╔═██╗     ██║    ██║   ██║ ██║╚██╔╝██║
    ██║  ██║ ██║  ██║ ██║  ██╗ ██║    ██║    ███████╗ ██║  ██╗    ██║    ╚██████╔╝ ██║ ╚═╝ ██║
-   ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝    ╚═╝     ╚═════╝  ╚═╝     ╚═╝
-EOF
-printf '\033[0m'
+   ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝    ╚═╝     ╚═════╝  ╚═╝     ╚═╝"
 
 # --- Status helpers ---
 RED='\033[91m'
@@ -92,6 +88,14 @@ CLAUDE_USER="${LOCAL_USER:-claude}"
 CLAUDE_UID=$(id -u "$CLAUDE_USER")
 iptables -A OUTPUT -m owner --uid-owner "$CLAUDE_UID" -d 127.0.0.0/8 -j ACCEPT
 iptables -A OUTPUT -m owner --uid-owner "$CLAUDE_UID" -j REJECT --reject-with icmp-admin-prohibited
+
+# root and _apt: localhost only (for apt-safe via sudo)
+iptables -A OUTPUT -m owner --uid-owner 0 -d 127.0.0.0/8 -j ACCEPT
+iptables -A OUTPUT -m owner --uid-owner 0 -j REJECT --reject-with icmp-admin-prohibited
+if id -u _apt &>/dev/null; then
+    iptables -A OUTPUT -m owner --uid-owner _apt -d 127.0.0.0/8 -j ACCEPT
+    iptables -A OUTPUT -m owner --uid-owner _apt -j REJECT --reject-with icmp-admin-prohibited
+fi
 
 # Default: drop everything else
 iptables -P INPUT DROP

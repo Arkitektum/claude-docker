@@ -121,10 +121,13 @@ USER root
 COPY squid.conf /etc/squid/squid.conf
 COPY init-proxy.sh /usr/local/bin/init-proxy.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY apt-safe /usr/local/bin/apt-safe
 RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-plugins.sh && \
+    chmod 0555 /usr/local/bin/apt-safe && \
     chmod 0444 /etc/squid/squid.conf && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD:SETENV: /usr/local/bin/init-proxy.sh" > /etc/sudoers.d/init-proxy && \
-    chmod 0440 /etc/sudoers.d/init-proxy
+    echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/apt-safe" > /etc/sudoers.d/apt-safe && \
+    chmod 0440 /etc/sudoers.d/init-proxy /etc/sudoers.d/apt-safe
 
 # Make build arg available at runtime for init-proxy.sh
 ENV LOCAL_USER=${LOCAL_USER}
