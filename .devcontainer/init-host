@@ -4,5 +4,5 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p ~/.claude
-touch ~/.claude.json
+[ -f ~/.claude.json ] || echo '{}' > ~/.claude.json
 "$SCRIPT_DIR/seed-plugins.sh" "$SCRIPT_DIR/plugin-seed"

@@ -20,7 +20,7 @@ set -- "${ARGS[@]}"
 
 # Ensure Claude config exists on host before bind-mounting
 mkdir -p "${HOME}/.claude"
-touch "${HOME}/.claude.json"
+[ -f "${HOME}/.claude.json" ] || echo '{}' > "${HOME}/.claude.json"
 
 # Get local username and UID/GID
 LOCAL_USER="${USER}"
