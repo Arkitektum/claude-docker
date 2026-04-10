@@ -91,7 +91,7 @@ This sets up a dev container in your project. VS Code runs inside the container 
 
 ### Prerequisites
 
-- **Docker Desktop** -- [macOS](https://docs.docker.com/desktop/install/mac-install/) or [Linux](https://docs.docker.com/engine/install/). Windows users: install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) and enable the WSL 2 backend.
+- **Docker Desktop** -- [macOS](https://docs.docker.com/desktop/install/mac-install/) or [Linux](https://docs.docker.com/engine/install/). Windows users: install [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/) and enable the WSL 2 backend.
 - **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 - **git** -- pre-installed on macOS/Linux; on WSL2: `sudo apt install -y git`
 
@@ -128,39 +128,22 @@ The first build takes a few minutes. After that, reopening is fast. The proxy an
 
 ## Windows: WSL2 setup
 
-WSL2 (Windows Subsystem for Linux) is required for running this project on Windows. It gives you a real Linux environment inside Windows 10/11.
+WSL2 (Windows Subsystem for Linux) is required for running this project on Windows.
 
-### Install WSL2
+1. Install WSL2 by following the [official Microsoft documentation](https://learn.microsoft.com/en-us/windows/wsl/install).
+2. Install [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/) and enable the WSL 2 backend in its settings.
 
-Open **PowerShell as Administrator** and run:
+Once set up, run all commands from your **Ubuntu terminal**, not PowerShell. Follow [Option 1](#option-1-terminal-cli) or [Option 2](#option-2-vs-code-dev-container) above.
 
-```powershell
-wsl --install
-```
+> For best performance, keep your projects inside the WSL2 filesystem (e.g. `~/projects/`) rather than `/mnt/c/`.
 
-Restart your computer when prompted. After restarting, open **Ubuntu** from the Start menu and create a username and password.
-
-### Install Docker
-
-Install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/). In Docker Desktop settings, confirm **"Use the WSL 2 based engine"** is checked (default).
-
-Verify Docker works from your Ubuntu terminal:
-
-```bash
-docker run hello-world
-```
-
-### Install dependencies
-
-```bash
-sudo apt update && sudo apt install -y git jq
-```
-
-### Next steps
-
-Run all commands from your **Ubuntu terminal**, not PowerShell. Follow [Option 1](#option-1-terminal-cli) or [Option 2](#option-2-vs-code-dev-container) above.
-
-> Your Windows files are accessible at `/mnt/c/Users/<your-name>/` inside WSL2, but for best performance, keep your projects inside the WSL2 filesystem (e.g. `~/projects/`).
+> **Line endings:** Git on Windows defaults to rewriting line endings to CRLF on checkout (`core.autocrlf=true`). If you use a Windows Git client (GitKraken, Visual Studio, Windows Git Bash) and access the same checkout from WSL2, shell scripts and tools inside the container will break due to unexpected `\r` characters. The proper fix is to add a `.gitattributes` file to each repo:
+>
+> ```
+> * text=auto eol=lf
+> ```
+>
+> This forces LF endings on checkout for everyone, regardless of local git config. Modern Visual Studio and GitKraken both handle LF fine on Windows. Without this, your only options are cloning from within WSL2 (separate checkout from your Windows tools) or setting `core.autocrlf=false` globally in your Windows Git config.
 
 ---
 
@@ -205,8 +188,12 @@ The image is based on Ubuntu 24.04 and includes:
 - Terraform MCP server
 - `apt-safe` CLI for safe package installation
 
+## Installing packages (for Claude)
+
+The container includes `apt-safe`, a hardened wrapper around `apt` that the agent can use to install system packages during a session. Installed packages do not persist across container restarts.
+
 ## Caveats
 
 - **First build is slow.** The image includes many language runtimes (~3-4 GB). Subsequent runs reuse the cached image.
 - **`--no-firewall` disables all network restrictions** (CLI only). Use this if you need access to services not on the allow list, but be aware there is no network sandbox.
-- **IPv6 is not firewalled.** The current rules only cover IPv4. On most Docker setups this is fine since Docker defaults to IPv4 bridge networking.
+
