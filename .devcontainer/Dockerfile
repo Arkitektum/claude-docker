@@ -109,8 +109,8 @@ RUN uv tool install playwright && playwright install chromium
 # Install Claude Code
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Install Terraform MCP Server
-RUN go install github.com/hashicorp/terraform-mcp-server/cmd/terraform-mcp-server@latest
+# Install Terraform MCP Server (copy binary from official Docker image)
+COPY --from=hashicorp/terraform-mcp-server:0.5.1 --chmod=755 /bin/terraform-mcp-server /home/${LOCAL_USER}/.local/bin/terraform-mcp-server
 
 # Marketplace plugin seed (built by seed-plugins.sh on host before docker build)
 COPY --chown=${LOCAL_USER}:${LOCAL_USER} plugin-seed/seed/ /opt/claude-plugin-seed/
