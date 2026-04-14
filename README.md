@@ -21,7 +21,7 @@ This installs a `claude-docker` command that runs Claude Code inside a container
 
 ### Prerequisites
 
-- **Docker** -- [Linux install guide](https://docs.docker.com/engine/install/) or [macOS Docker Desktop](https://docs.docker.com/desktop/install/mac-install/)
+- **Docker** -- If you have WSL2 and Docker Desktop, this is already covered. [Linux install guide](https://docs.docker.com/engine/install/) or [macOS Docker Desktop](https://docs.docker.com/desktop/install/mac-install/)
 - **git** and **jq** -- usually pre-installed on macOS; on Linux: `sudo apt install -y git jq`
 
 After installing Docker on Linux, run `sudo usermod -aG docker $USER` and log out/in so you can run Docker without `sudo`.
