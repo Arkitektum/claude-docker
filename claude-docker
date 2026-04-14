@@ -20,7 +20,7 @@ set -- "${ARGS[@]}"
 
 # Ensure Claude config exists on host before bind-mounting
 mkdir -p "${HOME}/.claude"
-[ -f "${HOME}/.claude.json" ] || echo '{}' > "${HOME}/.claude.json"
+[ -f "${HOME}/.claude/.claude.json" ] || echo '{}' > "${HOME}/.claude/.claude.json"
 
 # Get local username and UID/GID
 LOCAL_USER="${USER}"
@@ -62,7 +62,7 @@ RUN_ARGS=(
   -it --rm --init
   -v "$(pwd):$(pwd)"
   -v "${HOME}/.claude:/home/${LOCAL_USER}/.claude"
-  -v "${HOME}/.claude.json:/home/${LOCAL_USER}/.claude.json"
+  -v "${HOME}/.claude/.claude.json:/home/${LOCAL_USER}/.claude.json"
   -e LANG="C.UTF-8"
   -e LC_ALL="C.UTF-8"
   -e COLORTERM=truecolor
