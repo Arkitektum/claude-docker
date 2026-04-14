@@ -4,7 +4,9 @@
     "dockerfile": "Dockerfile",
     "args": {
       "TZ": "${localEnv:TZ:UTC}",
-      "LOCAL_USER": "${localEnv:USER:claude}"
+      "LOCAL_USER": "${localEnv:USER:claude}",
+      "LOCAL_UID": "${localEnv:UID:1000}",
+      "LOCAL_GID": "${localEnv:GID:1000}"
     }
   },
   "runArgs": [

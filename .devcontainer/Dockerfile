@@ -73,10 +73,11 @@ ARG LOCAL_GID=1000
 
 # Create user matching host (delete Ubuntu 24.04's default ubuntu:1000 if it exists)
 RUN (userdel -r ubuntu 2>/dev/null || true) && \
+    (groupdel ubuntu 2>/dev/null || true) && \
     groupadd -g ${LOCAL_GID} ${LOCAL_USER} 2>/dev/null || true && \
     useradd -m -u ${LOCAL_UID} -g ${LOCAL_GID} -s /bin/bash ${LOCAL_USER} && \
     mkdir -p /home/${LOCAL_USER}/.claude && \
-    chown ${LOCAL_USER}:${LOCAL_USER} /home/${LOCAL_USER}/.claude
+    chown ${LOCAL_UID}:${LOCAL_GID} /home/${LOCAL_USER}/.claude
 ENV HOME=/home/${LOCAL_USER}
 
 ENV DISABLE_AUTOUPDATER=1 \
@@ -113,8 +114,8 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 COPY --from=hashicorp/terraform-mcp-server:0.5.1 --chmod=755 /bin/terraform-mcp-server /home/${LOCAL_USER}/.local/bin/terraform-mcp-server
 
 # Marketplace plugin seed (built by seed-plugins.sh on host before docker build)
-COPY --chown=${LOCAL_USER}:${LOCAL_USER} plugin-seed/seed/ /opt/claude-plugin-seed/
-COPY --chown=${LOCAL_USER}:${LOCAL_USER} setup-plugins.sh /usr/local/bin/
+COPY --chown=${LOCAL_UID}:${LOCAL_GID} plugin-seed/seed/ /opt/claude-plugin-seed/
+COPY --chown=${LOCAL_UID}:${LOCAL_GID} setup-plugins.sh /usr/local/bin/
 
 # Squid proxy, entrypoint, and managed settings
 USER root
