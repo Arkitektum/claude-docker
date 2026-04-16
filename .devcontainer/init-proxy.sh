@@ -69,8 +69,8 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-# Docker host network
-HOST_IP=$(ip route | grep default | cut -d" " -f3)
+# Docker host network (set via --add-host=host.docker.internal:host-gateway)
+HOST_IP=$(getent ahostsv4 host.docker.internal 2>/dev/null | awk 'NR==1{print $1}')
 if [ -n "$HOST_IP" ]; then
     HOST_NETWORK=$(echo "$HOST_IP" | sed "s/\.[0-9]*$/.0\/24/")
     iptables -A INPUT -s "$HOST_NETWORK" -j ACCEPT

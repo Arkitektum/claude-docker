@@ -99,6 +99,7 @@ fi
 # Build docker run arguments
 RUN_ARGS=(
   -it --rm --init
+  --add-host=host.docker.internal:host-gateway
   -v "$(pwd):$(pwd)"
   -v "${HOME}/.claude:/home/${LOCAL_USER}/.claude"
   -e LANG="C.UTF-8"
