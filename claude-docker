@@ -18,10 +18,48 @@ for arg in "$@"; do
 done
 set -- "${ARGS[@]}"
 
-# Ensure Claude config exists on host before bind-mounting
+# Ensure Claude config directory exists
 mkdir -p "${HOME}/.claude"
-[ -f "${HOME}/.claude.json" ] || echo '{}' > "${HOME}/.claude.json"
-[ -f "${HOME}/.claude/.claude.json" ] || echo '{}' > "${HOME}/.claude/.claude.json"
+
+# Migrate .claude.json into .claude/ directory so we only need directory mounts
+# (single-file bind mounts don't work on Mac Docker Desktop).
+# Canonical location: ~/.claude/.claude.json, with ~/.claude.json as a symlink.
+if [ -L "${HOME}/.claude.json" ]; then
+  [ -f "${HOME}/.claude/.claude.json" ] || echo '{}' > "${HOME}/.claude/.claude.json"
+elif [ -f "${HOME}/.claude.json" ] && [ -f "${HOME}/.claude/.claude.json" ]; then
+  cat >&2 <<'CONFLICT'
+Error: Found .claude.json in two locations:
+
+  1. ~/.claude.json
+  2. ~/.claude/.claude.json
+
+This happened because an earlier version of claude-docker incorrectly created
+the second file. Only ONE of them has your real Claude config (OAuth tokens,
+settings, etc). The other is likely an empty '{}' or stale copy.
+
+To fix this, compare the two files and keep the real one:
+
+  diff ~/.claude.json ~/.claude/.claude.json
+
+Then pick one:
+
+  # If ~/.claude.json is the real one:
+  cp ~/.claude.json ~/.claude/.claude.json
+  rm ~/.claude.json
+  ln -s ~/.claude/.claude.json ~/.claude.json
+
+  # If ~/.claude/.claude.json is the real one:
+  rm ~/.claude.json
+  ln -s ~/.claude/.claude.json ~/.claude.json
+
+After fixing, re-run this command.
+CONFLICT
+  exit 1
+else
+  # Ensure canonical file exists (copy from outer file, or create fresh)
+  [ -f "${HOME}/.claude/.claude.json" ] || cp "${HOME}/.claude.json" "${HOME}/.claude/.claude.json" 2>/dev/null || echo '{}' > "${HOME}/.claude/.claude.json"
+  ln -sf "${HOME}/.claude/.claude.json" "${HOME}/.claude.json"
+fi
 
 # Get local username and UID/GID
 LOCAL_USER="${USER}"
@@ -63,7 +101,6 @@ RUN_ARGS=(
   -it --rm --init
   -v "$(pwd):$(pwd)"
   -v "${HOME}/.claude:/home/${LOCAL_USER}/.claude"
-  -v "${HOME}/.claude/.claude.json:/home/${LOCAL_USER}/.claude.json"
   -e LANG="C.UTF-8"
   -e LC_ALL="C.UTF-8"
   -e COLORTERM=truecolor
