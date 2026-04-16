@@ -3,6 +3,12 @@ FROM ubuntu:24.04
 ARG TZ
 ENV TZ="$TZ"
 
+# Prefer IPv4 over IPv6 to prevent apt and other tools from stalling on IPv6 connections
+RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf
+
+# Use Norwegian mirror (default Ubuntu mirrors may be unreachable over IPv6 or port 80)
+RUN sed -i 's|http://[^ ]*/ubuntu/\?|http://ftp.uninett.no/ubuntu/ |g' /etc/apt/sources.list.d/ubuntu.sources
+
 # Install dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl \
