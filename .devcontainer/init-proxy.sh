@@ -17,11 +17,10 @@ printf '\n\033[91m%s\033[0m\n' "\
    ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝    ╚═╝     ╚═════╝  ╚═╝     ╚═╝"
 
 # --- Status helpers ---
-RED='\033[91m'
 GREEN='\033[32m'
+GREY='\033[90m'
 BOLD='\033[1m'
 RESET='\033[0m'
-status_line() { echo -e "  ${RED}$1${RESET}"; }
 
 # --- Start squid proxy ---
 squid -f /etc/squid/squid.conf -N -d 2 2>/dev/null &
@@ -45,8 +44,6 @@ if ! ss -tlnp 2>/dev/null | grep -q ':3128'; then
     cat /var/log/squid/cache.log 2>/dev/null >&2
     exit 1
 fi
-status_line "Squid proxy started"
-
 # --- Setup iptables ---
 # Preserve Docker internal DNS NAT rules
 DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
@@ -72,8 +69,8 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-# Docker host network
-HOST_IP=$(ip route | grep default | cut -d" " -f3)
+# Docker host network (set via --add-host=host.docker.internal:host-gateway)
+HOST_IP=$(getent ahostsv4 host.docker.internal 2>/dev/null | awk 'NR==1{print $1}')
 if [ -n "$HOST_IP" ]; then
     HOST_NETWORK=$(echo "$HOST_IP" | sed "s/\.[0-9]*$/.0\/24/")
     iptables -A INPUT -s "$HOST_NETWORK" -j ACCEPT
@@ -117,26 +114,53 @@ if command -v ip6tables &>/dev/null; then
     ip6tables -P OUTPUT DROP
 fi
 
-status_line "Firewall configured"
+# --- localhost -> host mapping ---
+# Point "localhost" to the Docker host so that localhost:PORT reaches
+# services on the user's machine. The proxy uses 127.0.0.1 directly
+# so it's unaffected. Container-internal services bind to container.local.
+if [ -n "$HOST_IP" ]; then
+    # sed -i fails on /etc/hosts (Docker bind mount rejects rename), so use cp.
+    # Remove IPv6 localhost too, otherwise getent/curl prefer ::1 over the IPv4 mapping.
+    sed -e "s/^127\.0\.0\.1\s\+localhost.*/$HOST_IP localhost/" \
+        -e "s/^::1\s\+localhost.*/#::1 localhost/" /etc/hosts > /tmp/hosts.tmp
+    if ! grep -q 'container.local' /tmp/hosts.tmp; then
+        echo "127.0.0.2 container.local" >> /tmp/hosts.tmp
+    fi
+    cp /tmp/hosts.tmp /etc/hosts
+    rm /tmp/hosts.tmp
+fi
 
 # --- Verification ---
 if ! curl -sf -x http://127.0.0.1:3128 --connect-timeout 5 https://api.github.com/zen >/dev/null 2>&1; then
     echo "ERROR: Cannot reach api.github.com through proxy" >&2
     exit 1
 fi
-status_line "Verified: allowed domain reachable through proxy"
 
 if curl -sf -x http://127.0.0.1:3128 --connect-timeout 5 https://example.com >/dev/null 2>&1; then
     echo "ERROR: example.com should be blocked by proxy" >&2
     exit 1
 fi
-status_line "Verified: blocked domain rejected by proxy"
 
 if su -s /bin/sh "$CLAUDE_USER" -c 'curl -sf --noproxy "*" --connect-timeout 3 https://api.github.com/zen' >/dev/null 2>&1; then
     echo "ERROR: Direct outbound connection should be blocked" >&2
     exit 1
 fi
-status_line "Verified: direct connections blocked by firewall"
+echo ""
+echo -e "  ${GREEN}${BOLD}Proxy started, firewall configured${RESET}"
+echo -e "  ${GREY}\u251C Proxy allow/deny verified, direct connections blocked${RESET}"
+if [ -n "$HOST_IP" ]; then
+    echo -e "  ${GREY}\u2514 localhost remapped to host machine ($HOST_IP), use container.local for this container's localhost${RESET}"
+fi
+echo ""
+
+# --- Host proxy bypass ---
+# Add host gateway IP to no_proxy so traffic to the host bypasses Squid.
+# Sourced by entrypoint.sh before exec'ing claude.
+if [ -n "$HOST_IP" ]; then
+    cat > /etc/proxy-host.sh <<EOF
+export no_proxy="\${no_proxy},${HOST_IP}"
+export NO_PROXY="\${NO_PROXY},${HOST_IP}"
+EOF
+fi
 
 touch /tmp/.proxy-ready
-echo -e "\n  ${GREEN}${BOLD}Proxy and firewall ready${RESET}\n"

@@ -11,4 +11,10 @@ if [ "${DISABLE_FIREWALL:-}" != "1" ] && [ ! -f /tmp/.proxy-ready ]; then
 fi
 /usr/local/bin/setup-plugins.sh
 
+# Source proxy host bypass so claude inherits the updated no_proxy
+# (BASH_ENV is not honored by Claude Code's internal shell)
+if [ -f /etc/proxy-host.sh ]; then
+    . /etc/proxy-host.sh
+fi
+
 exec "$@"
