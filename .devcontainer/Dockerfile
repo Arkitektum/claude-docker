@@ -163,8 +163,8 @@ ENV http_proxy="http://127.0.0.1:3128" \
     https_proxy="http://127.0.0.1:3128" \
     HTTP_PROXY="http://127.0.0.1:3128" \
     HTTPS_PROXY="http://127.0.0.1:3128" \
-    no_proxy="localhost,127.0.0.1" \
-    NO_PROXY="localhost,127.0.0.1"
+    no_proxy="localhost,127.0.0.1,container.local" \
+    NO_PROXY="localhost,127.0.0.1,container.local"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["sleep", "infinity"]
