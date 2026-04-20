@@ -55,7 +55,20 @@ Navigate to any project directory and run:
 claude-docker
 ```
 
-The first run builds the Docker image, which takes a few minutes. After that, subsequent runs start in seconds. You'll be prompted to log in to your Claude Code account on first use.
+The first run builds the Docker image, which takes a few minutes. After that, subsequent runs start in seconds. You'll be prompted to log in to your Claude Code account on first use -- see [Logging in](#logging-in) below.
+
+### Logging in
+
+OAuth login has to run with `--no-firewall`:
+
+```bash
+claude-docker --no-firewall
+# /login inside Claude, complete the browser flow, exit
+```
+
+Then start normally again (`claude-docker`). Tokens are stored in `~/.claude/.claude.json` and persist across restarts.
+
+**Why:** Claude Code's login opens a browser on your host that calls back to a local server. That callback needs the container to share the host's network namespace (`--no-firewall` uses `--net=host`), and it also needs `localhost` to mean "this container's loopback" rather than the remapped "host machine" used in normal mode. Outside of login, `localhost` in the container points at your host machine so MCP servers running locally work with the same config you'd use outside Docker.
 
 ### CLI options
 
