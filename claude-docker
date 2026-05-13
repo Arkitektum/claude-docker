@@ -96,6 +96,9 @@ if [ "${1:-}" = "bash" ]; then
   shift
 fi
 
+# Resolve host timezone (TZ env, else /etc/localtime symlink target)
+HOST_TZ="${TZ:-$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')}"
+
 # Build docker run arguments
 RUN_ARGS=(
   -it --rm --init
@@ -107,6 +110,10 @@ RUN_ARGS=(
   -e COLORTERM=truecolor
   -w "$(pwd)"
 )
+
+if [ -n "$HOST_TZ" ]; then
+  RUN_ARGS+=(-e TZ="$HOST_TZ")
+fi
 
 if [ -n "$NO_FIREWALL" ]; then
   RUN_ARGS+=(

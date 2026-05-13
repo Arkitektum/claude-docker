@@ -33,6 +33,9 @@ fi
 
 echo
 echo "Starting container (entrypoint sets up proxy and firewall)..."
+HOST_TZ="${TZ:-$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')}"
+TZ_ARGS=()
+[ -n "$HOST_TZ" ] && TZ_ARGS=(-e TZ="$HOST_TZ")
 CONTAINER_ID=$(docker run -d --init --rm \
     --cap-drop=ALL \
     --cap-add=NET_ADMIN \
@@ -40,6 +43,7 @@ CONTAINER_ID=$(docker run -d --init --rm \
     --cap-add=SETUID \
     --cap-add=SETGID \
     --cap-add=AUDIT_WRITE \
+    "${TZ_ARGS[@]}" \
     -v "$REPO_DIR:$REPO_DIR" \
     -w "$REPO_DIR" \
     "$IMAGE")
