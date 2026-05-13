@@ -184,7 +184,7 @@ Claude is informed about the container environment via a managed SessionStart ho
 | Go | `.golang.org`, `storage.googleapis.com` | Go modules |
 | NuGet | `.nuget.org`, `nugetserver-api.ft.dibk.no` | .NET packages (incl. DIBK feed) |
 | VS Code | `.visualstudio.com`, `vscode.blob.core.windows.net` | Extensions and updates (dev container mode) |
-| Ubuntu APT | `.ubuntu.com` | System package installation via `apt-safe` |
+| Ubuntu APT | `.ubuntu.com`, `ftp.uninett.no` | System package installation via `apt-safe` |
 | MCP servers | `mcp.exa.ai`, `mcp.context7.com`, `instances-mcp.vantage.sh` | Remote MCP services |
 
 ## What's in the container
