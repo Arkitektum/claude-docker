@@ -85,6 +85,38 @@ Any additional arguments are passed through to `claude`. For example:
 claude-docker --allow-dangerously-skip-permissions
 ```
 
+### Allowing extra domains through the proxy
+
+Set `CLAUDE_DOCKER_ALLOW_DOMAINS` to a whitespace- or comma-separated list of domains. They are appended to the proxy allowlist when the container starts (no image rebuild required). Use a leading dot to match all subdomains.
+
+```bash
+export CLAUDE_DOCKER_ALLOW_DOMAINS=".internal.example.com api.partner.io"
+claude-docker
+```
+
+Domains added this way are not reflected in `/etc/claude-code/container.md`, so Claude won't automatically know they're allowed. Mention them in your prompt if relevant.
+
+### Adding your own tooling to the image
+
+Set `CLAUDE_DOCKER_CUSTOMIZE` to the path of a shell script. The script is copied into the build context and runs as `root` in the final layer of the Dockerfile, so it can install apt packages, write to `/etc/`, drop binaries in `/usr/local/bin`, etc. Build runs without the proxy, so direct network access is available.
+
+```bash
+export CLAUDE_DOCKER_CUSTOMIZE=~/.config/claude-docker/setup.sh
+claude-docker
+```
+
+Example `setup.sh`:
+
+```bash
+#!/bin/bash
+set -e
+apt-get update && apt-get install -y --no-install-recommends fzf
+# Install something for the unprivileged user:
+su - "$LOCAL_USER" -c 'uv tool install httpie'
+```
+
+The image rebuilds automatically when the script's contents change. Unset the variable (or `unset CLAUDE_DOCKER_CUSTOMIZE`) to go back to the stock image on the next run.
+
 ### How it works
 
 - Your current directory is mounted into the container, so Claude can read and edit your files directly.

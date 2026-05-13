@@ -33,6 +33,10 @@ assert_pass "api.github.com allowed through proxy" \
 assert_pass "api.anthropic.com reachable through proxy" \
     curl -x "$PROXY" --connect-timeout 5 -s -o /dev/null -w "%{http_code}" https://api.anthropic.com
 
+# CLAUDE_DOCKER_ALLOW_DOMAINS appended google.com to the allowlist at startup
+assert_pass "google.com allowed via CLAUDE_DOCKER_ALLOW_DOMAINS" \
+    curl -x "$PROXY" --connect-timeout 5 -sf -o /dev/null https://www.google.com
+
 # Package installs (use proxy via env vars set in Dockerfile)
 assert_pass "npm install (lodash)" \
     sh -c "cd $DIR/fixtures/node && rm -rf node_modules package-lock.json && npm install --no-audit --no-fund 2>&1"

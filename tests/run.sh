@@ -13,12 +13,22 @@ LOCAL_USER="${USER}"
 LOCAL_UID="$(id -u)"
 LOCAL_GID="$(id -g)"
 
+# Build context is a temp overlay so tests can swap in a fixture customize.sh
+# without modifying the repo's .devcontainer/.
+BUILD_CONTEXT="$(mktemp -d)"
+
 cleanup() {
     if [ -n "${CONTAINER_ID:-}" ]; then
         docker rm -f "$CONTAINER_ID" >/dev/null 2>&1 || true
     fi
+    if [ -n "${BUILD_CONTEXT:-}" ] && [ -d "$BUILD_CONTEXT" ]; then
+        rm -rf "$BUILD_CONTEXT"
+    fi
 }
 trap cleanup EXIT
+
+cp -r "$DATA_DIR"/. "$BUILD_CONTEXT"/
+cp "$SCRIPT_DIR/fixtures/customize/customize.sh" "$BUILD_CONTEXT/customize.sh"
 
 echo "Building image..."
 if ! docker build \
@@ -26,7 +36,7 @@ if ! docker build \
     --build-arg LOCAL_UID="$LOCAL_UID" \
     --build-arg LOCAL_GID="$LOCAL_GID" \
     -t "$IMAGE" \
-    "$DATA_DIR"; then
+    "$BUILD_CONTEXT"; then
     echo "Build failed" >&2
     exit 1
 fi
@@ -37,12 +47,14 @@ HOST_TZ="${TZ:-$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')}"
 TZ_ARGS=()
 [ -n "$HOST_TZ" ] && TZ_ARGS=(-e TZ="$HOST_TZ")
 CONTAINER_ID=$(docker run -d --init --rm \
+    --add-host=host.docker.internal:host-gateway \
     --cap-drop=ALL \
     --cap-add=NET_ADMIN \
     --cap-add=NET_RAW \
     --cap-add=SETUID \
     --cap-add=SETGID \
     --cap-add=AUDIT_WRITE \
+    -e CLAUDE_DOCKER_ALLOW_DOMAINS=".google.com" \
     "${TZ_ARGS[@]}" \
     -v "$REPO_DIR:$REPO_DIR" \
     -w "$REPO_DIR" \

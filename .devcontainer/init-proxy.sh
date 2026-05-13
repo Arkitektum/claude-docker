@@ -22,6 +22,16 @@ GREY='\033[90m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
+# --- Append user-supplied allowed domains (from CLAUDE_DOCKER_ALLOW_DOMAINS) ---
+# Accepts whitespace- or comma-separated domain names. squid loads
+# /etc/squid/allowed_domains.txt at startup, so appending here is sufficient.
+if [ -n "${CLAUDE_DOCKER_ALLOW_DOMAINS:-}" ]; then
+    EXTRA_DOMAINS=$(echo "$CLAUDE_DOCKER_ALLOW_DOMAINS" | tr ',\t\n' '   ')
+    for d in $EXTRA_DOMAINS; do
+        echo "$d" >> /etc/squid/allowed_domains.txt
+    done
+fi
+
 # --- Start squid proxy ---
 squid -f /etc/squid/squid.conf -N -d 2 2>/dev/null &
 SQUID_PID=$!

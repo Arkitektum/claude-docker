@@ -24,9 +24,9 @@ fi
 mkdir -p "$TARGET/.devcontainer"
 
 # Copy top-level files
-for f in Dockerfile devcontainer.json squid.conf init-proxy.sh entrypoint.sh \
+for f in Dockerfile devcontainer.json squid.conf allowed_domains.txt init-proxy.sh entrypoint.sh \
          setup-plugins.sh seed-plugins.sh container.md apt-safe \
-         init-host; do
+         init-host customize.sh; do
   cp "$SOURCE/$f" "$TARGET/.devcontainer/$f"
 done
 

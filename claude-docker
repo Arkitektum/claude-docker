@@ -79,6 +79,20 @@ if [ -x "$DATA_DIR/seed-plugins.sh" ]; then
     echo "Warning: failed to seed marketplace plugins, continuing without plugins" >&2
 fi
 
+# Stage user customize script into build context (runs as root as last build layer).
+# Always (re)write so a previously-set CLAUDE_DOCKER_CUSTOMIZE doesn't linger after unset.
+if [ -n "$CLAUDE_DOCKER_CUSTOMIZE" ]; then
+  if [ ! -f "$CLAUDE_DOCKER_CUSTOMIZE" ]; then
+    echo "Error: CLAUDE_DOCKER_CUSTOMIZE points to missing file: $CLAUDE_DOCKER_CUSTOMIZE" >&2
+    exit 1
+  fi
+  cp "$CLAUDE_DOCKER_CUSTOMIZE" "$DATA_DIR/customize.sh"
+else
+  printf '#!/bin/bash\n# No customization configured (set CLAUDE_DOCKER_CUSTOMIZE to a script path).\n' \
+    > "$DATA_DIR/customize.sh"
+fi
+chmod +x "$DATA_DIR/customize.sh"
+
 # Build image
 if ! docker build $REBUILD_FLAG \
   --build-arg LOCAL_USER="$LOCAL_USER" \
@@ -113,6 +127,10 @@ RUN_ARGS=(
 
 if [ -n "$HOST_TZ" ]; then
   RUN_ARGS+=(-e TZ="$HOST_TZ")
+fi
+
+if [ -n "${CLAUDE_DOCKER_ALLOW_DOMAINS:-}" ]; then
+  RUN_ARGS+=(-e CLAUDE_DOCKER_ALLOW_DOMAINS="$CLAUDE_DOCKER_ALLOW_DOMAINS")
 fi
 
 if [ -n "$NO_FIREWALL" ]; then

@@ -127,12 +127,14 @@ COPY --chown=${LOCAL_UID}:${LOCAL_GID} setup-plugins.sh /usr/local/bin/
 # Squid proxy, entrypoint, and managed settings
 USER root
 COPY squid.conf /etc/squid/squid.conf
+COPY allowed_domains.txt /etc/squid/allowed_domains.txt
 COPY init-proxy.sh /usr/local/bin/init-proxy.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY apt-safe /usr/local/bin/apt-safe
 RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-plugins.sh && \
     chmod 0555 /usr/local/bin/apt-safe && \
     chmod 0444 /etc/squid/squid.conf && \
+    chmod 0644 /etc/squid/allowed_domains.txt && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD:SETENV: /usr/local/bin/init-proxy.sh" > /etc/sudoers.d/init-proxy && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/apt-safe" > /etc/sudoers.d/apt-safe && \
     chmod 0440 /etc/sudoers.d/init-proxy /etc/sudoers.d/apt-safe
@@ -150,10 +152,15 @@ COPY container.md /tmp/container.md
 RUN { cat /tmp/container.md; \
       echo ""; echo "## Proxy allowlist"; echo ""; \
       echo "Allowed domains (all subdomains included where prefixed with dot):"; echo ""; \
-      grep -oP 'dstdomain\s+\K\S+' /etc/squid/squid.conf | sort -u | sed 's/^/- /' ; \
+      sort -u /etc/squid/allowed_domains.txt | sed 's/^/- /' ; \
     } > /etc/claude-code/container.md && \
     rm /tmp/container.md && \
     chmod 0444 /etc/claude-code/container.md
+
+# User-provided customization script (staged by claude-docker from $CLAUDE_DOCKER_CUSTOMIZE).
+# Runs as root with direct network access (no proxy/firewall during build).
+COPY customize.sh /tmp/customize.sh
+RUN chmod +x /tmp/customize.sh && /tmp/customize.sh && rm /tmp/customize.sh
 
 USER ${LOCAL_USER}
 WORKDIR /app
