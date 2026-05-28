@@ -24,3 +24,4 @@ platform.claude.com
 .ubuntu.com
 nugetserver-api.ft.dibk.no
 ftp.uninett.no
+.deps.dev
