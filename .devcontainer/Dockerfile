@@ -114,8 +114,9 @@ ENV PATH="/home/${LOCAL_USER}/.cargo/bin:${PATH}"
 # Install Playwright and Chromium browser
 RUN uv tool install playwright && playwright install chromium
 
-# Install Claude Code
-RUN curl -fsSL https://claude.ai/install.sh | bash
+# Install Claude Code (optionally pinned via CLAUDE_CODE_VERSION: stable|latest|X.Y.Z)
+ARG CLAUDE_CODE_VERSION=latest
+RUN curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_CODE_VERSION}"
 
 # Install Terraform MCP Server (copy binary from official Docker image)
 COPY --from=hashicorp/terraform-mcp-server:0.5.1 --chmod=755 /bin/terraform-mcp-server /home/${LOCAL_USER}/.local/bin/terraform-mcp-server

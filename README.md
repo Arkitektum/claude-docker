@@ -117,6 +117,17 @@ su - "$LOCAL_USER" -c 'uv tool install httpie'
 
 The image rebuilds automatically when the script's contents change. Unset the variable (or `unset CLAUDE_DOCKER_CUSTOMIZE`) to go back to the stock image on the next run.
 
+### Pinning the Claude Code version
+
+Set `CLAUDE_DOCKER_CC_VERSION` to `stable`, `latest`, or a specific version like `1.2.3` to control which Claude Code release is baked into the image. Defaults to `latest` when unset.
+
+```bash
+export CLAUDE_DOCKER_CC_VERSION=1.2.3
+claude-docker --rebuild
+```
+
+Changing the value invalidates the install layer, so a rebuild is required for the new version to take effect.
+
 ### How it works
 
 - Your current directory is mounted into the container, so Claude can read and edit your files directly.

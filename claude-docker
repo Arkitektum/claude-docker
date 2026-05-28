@@ -94,10 +94,16 @@ fi
 chmod +x "$DATA_DIR/customize.sh"
 
 # Build image
+BUILD_ARGS=(
+  --build-arg LOCAL_USER="$LOCAL_USER"
+  --build-arg LOCAL_UID="$LOCAL_UID"
+  --build-arg LOCAL_GID="$LOCAL_GID"
+)
+if [ -n "${CLAUDE_DOCKER_CC_VERSION:-}" ]; then
+  BUILD_ARGS+=(--build-arg CLAUDE_CODE_VERSION="$CLAUDE_DOCKER_CC_VERSION")
+fi
 if ! docker build $REBUILD_FLAG \
-  --build-arg LOCAL_USER="$LOCAL_USER" \
-  --build-arg LOCAL_UID="$LOCAL_UID" \
-  --build-arg LOCAL_GID="$LOCAL_GID" \
+  "${BUILD_ARGS[@]}" \
   -t "$IMAGE" \
   "$DATA_DIR"; then
   exit $?
