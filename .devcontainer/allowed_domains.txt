@@ -25,3 +25,5 @@ platform.claude.com
 nugetserver-api.ft.dibk.no
 ftp.uninett.no
 .deps.dev
+.bitbucket.org
+.altinn.studio
