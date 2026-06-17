@@ -5,10 +5,22 @@ set -euo pipefail
 # (the real file lives at ~/.claude/.claude.json, managed by the host script)
 ln -sf "${HOME}/.claude/.claude.json" "${HOME}/.claude.json"
 
+# Banner (both modes); init-proxy.sh prints the status text per branch below.
+printf '\n\033[91m%s\033[0m\n' "\
+    █████╗  ██████╗  ██╗  ██╗ ██╗ ████████╗ ███████╗ ██╗  ██╗ ████████╗ ██╗   ██╗ ███╗   ███╗
+   ██╔══██╗ ██╔══██╗ ██║ ██╔╝ ██║ ╚══██╔══╝ ██╔════╝ ██║ ██╔╝ ╚══██╔══╝ ██║   ██║ ████╗ ████║
+   ███████║ ██████╔╝ █████╔╝  ██║    ██║    █████╗   █████╔╝     ██║    ██║   ██║ ██╔████╔██║
+   ██╔══██║ ██╔══██╗ ██╔═██╗  ██║    ██║    ██╔══╝   ██╔═██╗     ██║    ██║   ██║ ██║╚██╔╝██║
+   ██║  ██║ ██║  ██║ ██║  ██╗ ██║    ██║    ███████╗ ██║  ██╗    ██║    ╚██████╔╝ ██║ ╚═╝ ██║
+   ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝    ╚═╝     ╚═════╝  ╚═╝     ╚═╝"
+
 # Container initialization
 if [ "${DISABLE_FIREWALL:-}" = "1" ]; then
     # No proxy is running; strip the baked-in proxy env so requests go direct.
+    # (Must happen here: init-proxy.sh is a child and can't alter our env.)
     unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
+    # Unprivileged: just prints the disabled-firewall status (sudo is unavailable).
+    /usr/local/bin/init-proxy.sh
 elif [ ! -f /tmp/.proxy-ready ]; then
     sudo --preserve-env=LOCAL_USER,CLAUDE_DOCKER_ALLOW_DOMAINS /usr/local/bin/init-proxy.sh
 fi

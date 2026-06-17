@@ -20,28 +20,32 @@ Examples:
 
 Do NOT use `apt-get` or `apt` directly. The `apt-safe` script is the only permitted way to install packages.
 
-## Network
+## Playwright (browser automation)
 
-**Internet access** is restricted by a Squid proxy and iptables firewall:
-- HTTP/HTTPS traffic goes through a Squid proxy that only allows approved domains (listed below).
-- Direct outbound connections are blocked by iptables.
-- If a request fails unexpectedly, the domain is likely not in the proxy allowlist.
+Playwright with a matching headless **Chromium** is preinstalled. Use the CLI directly:
+- `playwright screenshot <url> out.png`
+- `playwright pdf <url> out.pdf`
+- `playwright codegen <url>`
 
-**`localhost` reaches the host machine**, not this container:
-- `localhost` resolves to the user's host machine via `/etc/hosts`.
-- `localhost:5173`, `localhost:8080`, etc. connect to services the user is running outside Docker.
-- Use `localhost` (the hostname), not `127.0.0.1`. The raw IP `127.0.0.1` still points to the container.
-- `curl` hardcodes `localhost` to `127.0.0.1` and bypasses `/etc/hosts`. When testing with curl, use the host IP directly: `curl http://$(getent hosts localhost | awk '{print $1}'):PORT`
+For Python scripts, `import playwright` does not work under plain `python3`. Run with `uv run`, pinning the version shown by `playwright --version`:
 
-**Container-internal services** use `container.local`:
-- Bind to `container.local` (resolves to `127.0.0.2`) for servers started inside this container.
-- Example: `vite --host container.local`, `python -m http.server --bind 127.0.0.2 8000`
-- These are only reachable from inside the container, not from the user's browser.
-- If you plan to run a service that the user needs to access in their browser, ask them to run it on their machine instead.
+```bash
+uv run --with playwright==1.60.0 python my_script.py
+```
+
+```python
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    page = p.chromium.launch().new_page()
+    page.goto("http://container.local:8099/")
+    page.screenshot(path="shot.png")
+```
+
+For Node, install the matching version (`npm install playwright@1.60.0`) and it reuses the bundled Chromium instead of downloading. A mismatched version pulls a different Chromium build, which fails (browser CDN is not in the allowlist).
 
 ## Constraints
 
 - **You only have access to the mounted project directory.** The host filesystem is not available beyond the current working directory and `~/.claude`.
 - **You are inside Docker.** System-level changes (modifying system config) require root/sudo and won't persist across container restarts unless part of the Dockerfile. Use `sudo apt-safe` to install packages.
-- **No SSH keys or git credentials are available.** Git operations to private repositories will fail. Public HTTPS clones work if the domain is in the proxy allowlist.
-- **Do not modify proxy or firewall settings.** The proxy config, iptables rules, and related system files are protected and read-only.
+- **No SSH keys or git credentials are available.** Git operations to private repositories will fail. Public HTTPS clones work for reachable domains (see Network below).

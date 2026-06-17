@@ -131,8 +131,9 @@ COPY squid.conf /etc/squid/squid.conf
 COPY allowed_domains.txt /etc/squid/allowed_domains.txt
 COPY init-proxy.sh /usr/local/bin/init-proxy.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY container-info.sh /usr/local/bin/container-info.sh
 COPY apt-safe /usr/local/bin/apt-safe
-RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-plugins.sh && \
+RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-plugins.sh /usr/local/bin/container-info.sh && \
     chmod 0555 /usr/local/bin/apt-safe && \
     chmod 0444 /etc/squid/squid.conf && \
     chmod 0644 /etc/squid/allowed_domains.txt && \
@@ -145,18 +146,13 @@ ENV LOCAL_USER=${LOCAL_USER}
 
 # Managed settings: enable plugins + inject container instructions via SessionStart hook
 RUN mkdir -p /etc/claude-code && \
-    echo '{"enabledPlugins":{"arkitektum-mandatory@arkitektum-marketplace":true},"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"cat /etc/claude-code/container.md"}]}]}}' \
+    echo '{"enabledPlugins":{"arkitektum-mandatory@arkitektum-marketplace":true},"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"/usr/local/bin/container-info.sh"}]}]}}' \
     > /etc/claude-code/managed-settings.json
 
-# Container documentation (available at /etc/claude-code/container.md)
-COPY container.md /tmp/container.md
-RUN { cat /tmp/container.md; \
-      echo ""; echo "## Proxy allowlist"; echo ""; \
-      echo "Allowed domains (all subdomains included where prefixed with dot):"; echo ""; \
-      sort -u /etc/squid/allowed_domains.txt | sed 's/^/- /' ; \
-    } > /etc/claude-code/container.md && \
-    rm /tmp/container.md && \
-    chmod 0444 /etc/claude-code/container.md
+# Container documentation base (the Network section + allowlist are appended at
+# runtime by container-info.sh, which reflects whether the firewall is active).
+COPY container.md /etc/claude-code/container.md
+RUN chmod 0444 /etc/claude-code/container.md
 
 # User-provided customization script (staged by claude-docker from $CLAUDE_DOCKER_CUSTOMIZE).
 # Runs as root with direct network access (no proxy/firewall during build).

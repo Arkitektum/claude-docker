@@ -1,26 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
+# --- Status helpers ---
+GREEN='\033[32m'
+YELLOW='\033[33m'
+GREY='\033[90m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+# Firewall disabled (--no-firewall): no proxy/iptables to set up, just report.
+# Runs unprivileged in this mode (sudo is unavailable under --cap-drop=ALL).
+if [ "${DISABLE_FIREWALL:-}" = "1" ]; then
+    echo ""
+    echo -e "  ${YELLOW}${BOLD}Firewall disabled (--no-firewall)${RESET}"
+    echo -e "  ${GREY}└ Direct, unrestricted network access; localhost reaches the host network${RESET}"
+    echo ""
+    exit 0
+fi
+
 # Idempotent: skip if already initialized
 if [ -f /tmp/.proxy-ready ]; then
     exit 0
 fi
-
-# --- Print logo ----
-
-printf '\n\033[91m%s\033[0m\n' "\
-    █████╗  ██████╗  ██╗  ██╗ ██╗ ████████╗ ███████╗ ██╗  ██╗ ████████╗ ██╗   ██╗ ███╗   ███╗
-   ██╔══██╗ ██╔══██╗ ██║ ██╔╝ ██║ ╚══██╔══╝ ██╔════╝ ██║ ██╔╝ ╚══██╔══╝ ██║   ██║ ████╗ ████║
-   ███████║ ██████╔╝ █████╔╝  ██║    ██║    █████╗   █████╔╝     ██║    ██║   ██║ ██╔████╔██║
-   ██╔══██║ ██╔══██╗ ██╔═██╗  ██║    ██║    ██╔══╝   ██╔═██╗     ██║    ██║   ██║ ██║╚██╔╝██║
-   ██║  ██║ ██║  ██║ ██║  ██╗ ██║    ██║    ███████╗ ██║  ██╗    ██║    ╚██████╔╝ ██║ ╚═╝ ██║
-   ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝  ╚═╝ ╚═╝    ╚═╝    ╚══════╝ ╚═╝  ╚═╝    ╚═╝     ╚═════╝  ╚═╝     ╚═╝"
-
-# --- Status helpers ---
-GREEN='\033[32m'
-GREY='\033[90m'
-BOLD='\033[1m'
-RESET='\033[0m'
 
 # --- Append user-supplied allowed domains (from CLAUDE_DOCKER_ALLOW_DOMAINS) ---
 # Accepts whitespace- or comma-separated domain names. squid loads

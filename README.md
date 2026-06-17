@@ -94,7 +94,7 @@ export CLAUDE_DOCKER_ALLOW_DOMAINS=".internal.example.com api.partner.io"
 claude-docker
 ```
 
-Domains added this way are not reflected in `/etc/claude-code/container.md`, so Claude won't automatically know they're allowed. Mention them in your prompt if relevant.
+Domains added this way are picked up by the SessionStart hook (it reads the live allowlist), so Claude sees them in the injected environment doc without a rebuild.
 
 ### Adding your own tooling to the image
 
@@ -212,7 +212,7 @@ On every container start, the init script verifies that:
 2. Blocked domains are rejected by the proxy
 3. Direct connections (bypassing the proxy) are blocked by iptables
 
-Claude is informed about the container environment via a managed SessionStart hook that injects `/etc/claude-code/container.md` into Claude's context. This file is generated at build time and includes the proxy allowlist.
+Claude is informed about the container environment via a managed SessionStart hook that runs `/usr/local/bin/container-info.sh`. It emits the base doc (`/etc/claude-code/container.md`) plus a network section chosen at runtime: with the firewall active it appends the proxy guidance and the live allowlist; with `--no-firewall` it describes the host-network setup instead.
 
 ### Allowed domains
 
