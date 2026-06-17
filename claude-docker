@@ -139,6 +139,17 @@ if [ -n "${CLAUDE_DOCKER_ALLOW_DOMAINS:-}" ]; then
   RUN_ARGS+=(-e CLAUDE_DOCKER_ALLOW_DOMAINS="$CLAUDE_DOCKER_ALLOW_DOMAINS")
 fi
 
+# Pass the host git identity (name + email) so the agent commits as you.
+# Off by default. Reads just the two values via git config, no file mount
+# (single-file bind mounts break on Mac Docker Desktop). GIT_AUTHOR_*/
+# GIT_COMMITTER_* are what git reads when creating a commit.
+if [ -n "${CLAUDE_DOCKER_GIT_IDENTITY:-}" ]; then
+  GIT_NAME="$(git config --get user.name 2>/dev/null)"
+  GIT_EMAIL="$(git config --get user.email 2>/dev/null)"
+  [ -n "$GIT_NAME" ]  && RUN_ARGS+=(-e GIT_AUTHOR_NAME="$GIT_NAME"   -e GIT_COMMITTER_NAME="$GIT_NAME")
+  [ -n "$GIT_EMAIL" ] && RUN_ARGS+=(-e GIT_AUTHOR_EMAIL="$GIT_EMAIL" -e GIT_COMMITTER_EMAIL="$GIT_EMAIL")
+fi
+
 if [ -n "$NO_FIREWALL" ]; then
   RUN_ARGS+=(
     --security-opt=no-new-privileges:true

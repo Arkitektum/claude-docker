@@ -128,6 +128,17 @@ claude-docker --rebuild
 
 Changing the value invalidates the install layer, so a rebuild is required for the new version to take effect.
 
+### Committing as yourself
+
+By default the container has no git identity, so commits the agent makes are attributed to a generic placeholder. Set `CLAUDE_DOCKER_GIT_IDENTITY` to any non-empty value to read your host `user.name` and `user.email` (via `git config`) and pass them in as `GIT_AUTHOR_*`/`GIT_COMMITTER_*`, so commits are attributed to you.
+
+```bash
+export CLAUDE_DOCKER_GIT_IDENTITY=1
+claude-docker
+```
+
+This only forwards name and email, not your full `.gitconfig` (no credential helpers, signing keys, or aliases). No rebuild required.
+
 ### How it works
 
 - Your current directory is mounted into the container, so Claude can read and edit your files directly.
