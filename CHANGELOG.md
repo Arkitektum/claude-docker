@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-06-22
+
+- The mandatory Arkitektum marketplace plugin is now installed and refreshed to the latest version automatically at container start, instead of being baked into the image at build time. Requires `github.com` (already in the proxy allowlist).
+
 ## 2026-05-28
 
 - Add `CLAUDE_DOCKER_CC_VERSION` env var to pin a specific Claude Code release (`stable`, `latest`, or `X.Y.Z`) at image build time. Forwarded to the Dockerfile as the `CLAUDE_CODE_VERSION` build arg.

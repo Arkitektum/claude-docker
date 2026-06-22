@@ -121,10 +121,6 @@ RUN curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_CODE_VERSION}
 # Install Terraform MCP Server (copy binary from official Docker image)
 COPY --from=hashicorp/terraform-mcp-server:0.5.1 --chmod=755 /bin/terraform-mcp-server /home/${LOCAL_USER}/.local/bin/terraform-mcp-server
 
-# Marketplace plugin seed (built by seed-plugins.sh on host before docker build)
-COPY --chown=${LOCAL_UID}:${LOCAL_GID} plugin-seed/seed/ /opt/claude-plugin-seed/
-COPY --chown=${LOCAL_UID}:${LOCAL_GID} setup-plugins.sh /usr/local/bin/
-
 # Squid proxy, entrypoint, and managed settings
 USER root
 COPY squid.conf /etc/squid/squid.conf
@@ -133,7 +129,7 @@ COPY init-proxy.sh /usr/local/bin/init-proxy.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY container-info.sh /usr/local/bin/container-info.sh
 COPY apt-safe /usr/local/bin/apt-safe
-RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-plugins.sh /usr/local/bin/container-info.sh && \
+RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/container-info.sh && \
     chmod 0555 /usr/local/bin/apt-safe && \
     chmod 0444 /etc/squid/squid.conf && \
     chmod 0644 /etc/squid/allowed_domains.txt && \

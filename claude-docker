@@ -73,12 +73,6 @@ if [ ! -f "$DATA_DIR/Dockerfile" ]; then
   exit 1
 fi
 
-# Seed marketplace plugins into build context
-if [ -x "$DATA_DIR/seed-plugins.sh" ]; then
-  "$DATA_DIR/seed-plugins.sh" "$DATA_DIR/plugin-seed" ||
-    echo "Warning: failed to seed marketplace plugins, continuing without plugins" >&2
-fi
-
 # Stage user customize script into build context (runs as root as last build layer).
 # Always (re)write so a previously-set CLAUDE_DOCKER_CUSTOMIZE doesn't linger after unset.
 if [ -n "$CLAUDE_DOCKER_CUSTOMIZE" ]; then

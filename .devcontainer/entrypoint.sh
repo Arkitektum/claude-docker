@@ -24,7 +24,19 @@ if [ "${DISABLE_FIREWALL:-}" = "1" ]; then
 elif [ ! -f /tmp/.proxy-ready ]; then
     sudo --preserve-env=LOCAL_USER,CLAUDE_DOCKER_ALLOW_DOMAINS /usr/local/bin/init-proxy.sh
 fi
-/usr/local/bin/setup-plugins.sh
+# Install and refresh the mandatory Arkitektum marketplace plugin on every start.
+# All four commands are idempotent: add/install handle a cold ~/.claude, the two
+# updates git-pull the marketplace and bring the plugin to the latest published
+# version (deterministic refresh, one git pull per start). ~/.claude is
+# host-mounted so installs persist. Needs github.com (allowlisted), no login.
+# Note: an update only delivers content if the marketplace bumps its version or
+# uses commit-SHA versioning; a frozen version string keeps the cached copy.
+claude plugin marketplace add Arkitektum/claude-code-marketplace >/dev/null 2>&1 || true
+claude plugin marketplace update arkitektum-marketplace >/dev/null 2>&1 || true
+if ! claude plugin install arkitektum-mandatory@arkitektum-marketplace >/dev/null 2>&1; then
+    echo "WARN: failed to install mandatory plugin arkitektum-mandatory (github unreachable?)" >&2
+fi
+claude plugin update arkitektum-mandatory@arkitektum-marketplace >/dev/null 2>&1 || true
 
 # Source proxy host bypass so claude inherits the updated no_proxy
 # (BASH_ENV is not honored by Claude Code's internal shell)
