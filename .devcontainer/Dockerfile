@@ -6,8 +6,12 @@ ENV TZ="$TZ"
 # Prefer IPv4 over IPv6 to prevent apt and other tools from stalling on IPv6 connections
 RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf
 
-# Use Norwegian mirror (default Ubuntu mirrors may be unreachable over IPv6 or port 80)
-RUN sed -i 's|http://[^ ]*/ubuntu/\?|http://ftp.uninett.no/ubuntu/ |g' /etc/apt/sources.list.d/ubuntu.sources
+# Use Norwegian mirror on x86 (default Ubuntu mirrors may be unreachable over IPv6 or port 80).
+# arm64 (Apple Silicon) builds pull from ports.ubuntu.com, which ftp.uninett.no does not
+# mirror, so those sources are left alone. The regex would also mangle "/ubuntu-ports/".
+RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+      sed -i 's|http://[^ ]*/ubuntu/\?|http://ftp.uninett.no/ubuntu/ |g' /etc/apt/sources.list.d/ubuntu.sources; \
+    fi
 
 # Install dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -33,7 +37,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteract
     iptables \
     iproute2 \
     dnsutils \
-    # Playwright chromium dependencies (ubuntu 24.04 x64)
+    # Playwright chromium dependencies (ubuntu 24.04)
     libasound2t64 \
     libatk-bridge2.0-0t64 \
     libatk1.0-0t64 \
@@ -57,9 +61,10 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteract
     libxrandr2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Go
+# Install Go (dpkg arch names match Go's: amd64, arm64)
 ARG GO_VERSION=1.25.5
-RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -O /tmp/go.tar.gz && \
+RUN GOARCH="$(dpkg --print-architecture)" && \
+    wget -q "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -O /tmp/go.tar.gz && \
     tar -C /usr/local -xzf /tmp/go.tar.gz && \
     rm /tmp/go.tar.gz
 ENV PATH="/usr/local/go/bin:${PATH}"

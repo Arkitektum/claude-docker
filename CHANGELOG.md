@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-12
+
+- Fix image build on arm64 (Apple Silicon). Two x86-only assumptions broke it: the apt sources rewrite pointed arm64 builds at `ftp.uninett.no`, which does not mirror `ports.ubuntu.com` (making `apt-get update` 404 and the package install fail), and the Go tarball was hardcoded to `linux-amd64` (installing an unrunnable `go` binary). Both now key off `dpkg --print-architecture`; amd64 builds are unchanged.
+
 ## 2026-06-22
 
 - The mandatory Arkitektum marketplace plugin is now installed and refreshed to the latest version automatically at container start, instead of being baked into the image at build time. Requires `github.com` (already in the proxy allowlist).
