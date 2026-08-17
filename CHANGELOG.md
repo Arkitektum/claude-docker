@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-17
+
+- Faster container start: the plugin refresh now probes the marketplace repo with a single `git ls-remote` and compares remote HEAD against the installed plugin's commit SHA. The slow `claude plugin` CLI commands only run on first install or when the marketplace actually changed. The entrypoint stays silent when the plugin is current and prints a status line when installing or updating.
+
 ## 2026-08-12
 
 - Fix image build on arm64 (Apple Silicon). Two x86-only assumptions broke it: the apt sources rewrite pointed arm64 builds at `ftp.uninett.no`, which does not mirror `ports.ubuntu.com` (making `apt-get update` 404 and the package install fail), and the Go tarball was hardcoded to `linux-amd64` (installing an unrunnable `go` binary). Both now key off `dpkg --print-architecture`; amd64 builds are unchanged.
