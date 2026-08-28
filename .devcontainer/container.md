@@ -20,6 +20,45 @@ Examples:
 
 Do NOT use `apt-get` or `apt` directly. The `apt-safe` script is the only permitted way to install packages.
 
+## Permanent tooling (image customization)
+
+Tools needed on every run can be baked into the image by a setup script that runs as `root` in the last build layer.
+
+Do not volunteer this procedure. When you install something with `apt-safe` that the user will likely need again, say in one sentence that it can be made permanent and that you can help, then get on with the task. Give the steps below only when asked.
+
+The script is the user's, not yours. It runs before the proxy and firewall exist, so it can undo every restriction you operate under. Propose the contents in the conversation and let the user create the file themselves. Never write or edit it, and never place it under `~/.claude`, which is shared with the host. You cannot rebuild the image either; that runs from the user's own terminal.
+
+Assume the user does not know Linux. Give exact text to copy and say where to run it.
+
+**1. Show the script and explain each line.**
+
+```bash
+#!/bin/bash
+set -e
+apt-get update && apt-get install -y --no-install-recommends fzf
+su - "$LOCAL_USER" -c 'uv tool install httpie'  # tools that install into the home directory
+```
+
+Use `apt-get` here, not `apt-safe`, since the script is already root. The `su -` form is required for anything landing in a home directory, otherwise it goes to root's home and is invisible at runtime. No proxy exists during the build, so download sites blocked at runtime work here. A non-zero exit fails the build and leaves the user with no container, so keep `set -e` and confirm package names with `sudo apt-safe install` first.
+
+**2. The user creates the file**, pasting the block whole:
+
+```bash
+mkdir -p ~/.config/claude-docker
+cat > ~/.config/claude-docker/setup.sh <<'SETUP'
+<the script from step 1>
+SETUP
+```
+
+**3. The user points `claude-docker` at it** with the line for their computer, then closes that terminal and opens a new one:
+
+```bash
+echo 'export CLAUDE_DOCKER_CUSTOMIZE=~/.config/claude-docker/setup.sh' >> ~/.zshrc   # Mac
+echo 'export CLAUDE_DOCKER_CUSTOMIZE=~/.config/claude-docker/setup.sh' >> ~/.bashrc  # Linux
+```
+
+This tells `claude-docker` where the script is on every start, and only applies to terminal windows opened afterwards. They then run `claude-docker` in the project folder; the first start is slow while the image rebuilds (no flag needed, changed contents trigger it). Afterwards, confirm the tool is really there with `which`. Running `claude-docker` from a terminal missing that line rebuilds without any of these tools, which is why it goes in the profile file.
+
 ## Playwright (browser automation)
 
 Playwright with a matching headless **Chromium** is preinstalled. Use the CLI directly:
