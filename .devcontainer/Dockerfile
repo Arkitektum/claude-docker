@@ -8,9 +8,9 @@ RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf
 
 # Use Norwegian mirror on x86 (default Ubuntu mirrors may be unreachable over IPv6 or port 80).
 # arm64 (Apple Silicon) builds pull from ports.ubuntu.com, which ftp.uninett.no does not
-# mirror, so those sources are left alone. The regex would also mangle "/ubuntu-ports/".
+# mirror, so those sources are left alone.
 RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
-      sed -i 's|http://[^ ]*/ubuntu/\?|http://ftp.uninett.no/ubuntu/ |g' /etc/apt/sources.list.d/ubuntu.sources; \
+      sed -i 's|http://[^ ]*/ubuntu/|http://ftp.uninett.no/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources; \
     fi
 
 # Install dependencies
