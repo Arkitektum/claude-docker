@@ -66,6 +66,19 @@ else
     fi
 fi
 
+# Installing is not enough: enablement is a separate flag in settings.json,
+# `claude plugin disable` writes an explicit false, and `claude plugin update`
+# never touches it. Reading the flag costs 3ms against 400ms for a CLI call, and
+# `claude plugin enable` exits non-zero when the plugin is already enabled, so
+# only call it when the flag is actually missing.
+plugin_enabled=$(jq -r '.enabledPlugins["arkitektum-mandatory@arkitektum-marketplace"] // empty' "${HOME}/.claude/settings.json" 2>/dev/null || true)
+if [ "$plugin_enabled" != "true" ]; then
+    echo "Enabling arkitektum-mandatory plugin..."
+    if ! enable_out=$(claude plugin enable arkitektum-mandatory@arkitektum-marketplace 2>&1); then
+        echo "WARN: ${enable_out}" >&2
+    fi
+fi
+
 # Source proxy host bypass so claude inherits the updated no_proxy
 # (BASH_ENV is not honored by Claude Code's internal shell)
 if [ -f /etc/proxy-host.sh ]; then

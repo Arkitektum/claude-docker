@@ -4,6 +4,7 @@
 
 - Container instructions reach Claude as the managed-policy `CLAUDE.md` at `/etc/claude-code/CLAUDE.md`, written at startup by `sudo write-container-md`. Subagents load it too, so they know about `apt-safe` instead of reaching for `apt-get`. The image seeds the file at build time, so a failed refresh costs only the network section.
 - Container instructions cover `CLAUDE_DOCKER_CUSTOMIZE`, so Claude can guide users through making a tool permanent instead of only reaching for `apt-safe`. Claude proposes the script contents but never writes the file: it runs as root before the proxy and firewall exist, so it stays on a host path outside the container's mounts.
+- The mandatory Arkitektum plugin is checked for enablement at container start, and enabled when the flag is missing. Installing records enablement, but `claude plugin update` leaves a disabled plugin disabled, so the install/update path alone could not guarantee it was active.
 
 ## 2026-08-17
 
