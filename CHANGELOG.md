@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-28
+
+- Container instructions reach Claude as the managed-policy `CLAUDE.md` at `/etc/claude-code/CLAUDE.md`, written at startup by `sudo write-container-md`. Subagents load it too, so they know about `apt-safe` instead of reaching for `apt-get`. The image seeds the file at build time, so a failed refresh costs only the network section.
+- Container instructions cover `CLAUDE_DOCKER_CUSTOMIZE`, so Claude can guide users through making a tool permanent instead of only reaching for `apt-safe`. Claude proposes the script contents but never writes the file: it runs as root before the proxy and firewall exist, so it stays on a host path outside the container's mounts.
+
 ## 2026-08-17
 
 - Faster container start: the plugin refresh now probes the marketplace repo with a single `git ls-remote` and compares remote HEAD against the installed plugin's commit SHA. The slow `claude plugin` CLI commands only run on first install or when the marketplace actually changed. The entrypoint stays silent when the plugin is current and prints a status line when installing or updating.

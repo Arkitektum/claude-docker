@@ -126,34 +126,37 @@ RUN curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_CODE_VERSION}
 # Install Terraform MCP Server (copy binary from official Docker image)
 COPY --from=hashicorp/terraform-mcp-server:0.5.1 --chmod=755 /bin/terraform-mcp-server /home/${LOCAL_USER}/.local/bin/terraform-mcp-server
 
-# Squid proxy, entrypoint, and managed settings
+# Squid proxy, entrypoint, and container instructions
 USER root
 COPY squid.conf /etc/squid/squid.conf
 COPY allowed_domains.txt /etc/squid/allowed_domains.txt
 COPY init-proxy.sh /usr/local/bin/init-proxy.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY container-info.sh /usr/local/bin/container-info.sh
 COPY apt-safe /usr/local/bin/apt-safe
-RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh /usr/local/bin/container-info.sh && \
-    chmod 0555 /usr/local/bin/apt-safe && \
+COPY write-container-md /usr/local/bin/write-container-md
+RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh && \
+    chmod 0555 /usr/local/bin/apt-safe /usr/local/bin/write-container-md && \
     chmod 0444 /etc/squid/squid.conf && \
     chmod 0644 /etc/squid/allowed_domains.txt && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD:SETENV: /usr/local/bin/init-proxy.sh" > /etc/sudoers.d/init-proxy && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/apt-safe" > /etc/sudoers.d/apt-safe && \
-    chmod 0440 /etc/sudoers.d/init-proxy /etc/sudoers.d/apt-safe
+    echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/write-container-md" > /etc/sudoers.d/write-container-md && \
+    chmod 0440 /etc/sudoers.d/init-proxy /etc/sudoers.d/apt-safe /etc/sudoers.d/write-container-md
 
 # Make build arg available at runtime for init-proxy.sh
 ENV LOCAL_USER=${LOCAL_USER}
 
-# Managed settings: enable plugins + inject container instructions via SessionStart hook
-RUN mkdir -p /etc/claude-code && \
-    echo '{"enabledPlugins":{"arkitektum-mandatory@arkitektum-marketplace":true},"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"/usr/local/bin/container-info.sh"}]}]}}' \
-    > /etc/claude-code/managed-settings.json
-
-# Container documentation base (the Network section + allowlist are appended at
-# runtime by container-info.sh, which reflects whether the firewall is active).
+# Container documentation. The entrypoint regenerates CLAUDE.md at startup with
+# the network section for the active firewall mode; the copy seeded here is the
+# fallback if that ever fails.
+#
+# Modes are set in a RUN rather than with COPY --chmod, which would also apply
+# the mode to /etc/claude-code itself. A directory without the execute bit hides
+# its contents from Claude Code and blocks writes even for root, which has no
+# CAP_DAC_OVERRIDE in this container.
 COPY container.md /etc/claude-code/container.md
-RUN chmod 0444 /etc/claude-code/container.md
+RUN cp /etc/claude-code/container.md /etc/claude-code/CLAUDE.md && \
+    chmod 0444 /etc/claude-code/container.md /etc/claude-code/CLAUDE.md
 
 # User-provided customization script (staged by claude-docker from $CLAUDE_DOCKER_CUSTOMIZE).
 # Runs as root with direct network access (no proxy/firewall during build).

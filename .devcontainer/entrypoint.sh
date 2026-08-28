@@ -24,6 +24,14 @@ if [ "${DISABLE_FIREWALL:-}" = "1" ]; then
 elif [ ! -f /tmp/.proxy-ready ]; then
     sudo --preserve-env=LOCAL_USER,CLAUDE_DOCKER_ALLOW_DOMAINS /usr/local/bin/init-proxy.sh
 fi
+
+# Publish the container instructions as the managed-policy CLAUDE.md that every
+# session and subagent loads. Runs after the firewall branch above, which decides
+# which network section applies.
+if ! sudo /usr/local/bin/write-container-md; then
+    echo "WARN: could not refresh /etc/claude-code/CLAUDE.md, using the build-time copy" >&2
+fi
+
 # Install and refresh the mandatory Arkitektum marketplace plugin. ~/.claude is
 # host-mounted so installs persist. Needs github.com (allowlisted), no login.
 #
