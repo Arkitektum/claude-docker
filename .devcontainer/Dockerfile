@@ -140,20 +140,22 @@ RUN chmod +x /usr/local/bin/init-proxy.sh /usr/local/bin/entrypoint.sh && \
     chmod 0644 /etc/squid/allowed_domains.txt && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD:SETENV: /usr/local/bin/init-proxy.sh" > /etc/sudoers.d/init-proxy && \
     echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/apt-safe" > /etc/sudoers.d/apt-safe && \
-    echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/write-container-md" > /etc/sudoers.d/write-container-md && \
+    echo "${LOCAL_USER} ALL=(root) NOPASSWD: /usr/local/bin/write-container-md \"\"" > /etc/sudoers.d/write-container-md && \
     chmod 0440 /etc/sudoers.d/init-proxy /etc/sudoers.d/apt-safe /etc/sudoers.d/write-container-md
 
 # Make build arg available at runtime for init-proxy.sh
 ENV LOCAL_USER=${LOCAL_USER}
 
-# Container documentation. The entrypoint regenerates CLAUDE.md at startup with
-# the network section for the active firewall mode; the copy seeded here is the
-# fallback if that ever fails.
+# Container documentation. CLAUDE.md ships as a copy of container.md, the whole
+# truth for a container without the firewall, and that mode keeps it: it has no
+# route to root at runtime and could not regenerate the file anyway. In firewall
+# mode the entrypoint overwrites it at startup with the proxied variant, which is
+# also what fills in the live allowlist.
 #
-# Modes are set in a RUN rather than with COPY --chmod, which would also apply
-# the mode to /etc/claude-code itself. A directory without the execute bit hides
-# its contents from Claude Code and blocks writes even for root, which has no
-# CAP_DAC_OVERRIDE in this container.
+# File modes are set in a RUN rather than with COPY --chmod, which would also
+# apply the mode to /etc/claude-code itself. A directory without the execute bit
+# hides its contents from Claude Code and blocks writes even for root, which has
+# no CAP_DAC_OVERRIDE in this container.
 COPY container.md /etc/claude-code/container.md
 RUN cp /etc/claude-code/container.md /etc/claude-code/CLAUDE.md && \
     chmod 0444 /etc/claude-code/container.md /etc/claude-code/CLAUDE.md

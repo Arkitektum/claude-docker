@@ -25,11 +25,14 @@ elif [ ! -f /tmp/.proxy-ready ]; then
     sudo --preserve-env=LOCAL_USER,CLAUDE_DOCKER_ALLOW_DOMAINS /usr/local/bin/init-proxy.sh
 fi
 
-# Publish the container instructions as the managed-policy CLAUDE.md that every
-# session and subagent loads. Runs after the firewall branch above, which decides
-# which network section applies.
-if ! sudo /usr/local/bin/write-container-md; then
-    echo "WARN: could not refresh /etc/claude-code/CLAUDE.md, using the build-time copy" >&2
+# Publish the proxied container instructions as the managed-policy CLAUDE.md that
+# every session and subagent loads. Only needed in firewall mode: the image ships
+# CLAUDE.md as a copy of container.md, which is already complete without the
+# firewall. Runs after the branch above so the allowlist it reads is the live one.
+if [ "${DISABLE_FIREWALL:-}" != "1" ]; then
+    if ! sudo /usr/local/bin/write-container-md; then
+        echo "WARN: could not refresh /etc/claude-code/CLAUDE.md, it does not describe the proxy or the allowlist" >&2
+    fi
 fi
 
 # Install and refresh the mandatory Arkitektum marketplace plugin. ~/.claude is

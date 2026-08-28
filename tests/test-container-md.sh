@@ -37,6 +37,11 @@ assert_pass "carries the firewall network section" \
 assert_pass "carries the live proxy allowlist" \
     grep -q "^- .google.com$" "$MD"
 
+# sudoers grants the command with no arguments at all, so the agent cannot feed
+# the generator anything.
+assert_fail "agent cannot pass arguments to the generator" \
+    sudo -n /usr/local/bin/write-container-md nofirewall
+
 assert_fail "agent cannot rewrite it" \
     sh -c "echo x >> $MD"
 
