@@ -24,6 +24,17 @@ if [ "${DISABLE_FIREWALL:-}" = "1" ]; then
 elif [ ! -f /tmp/.proxy-ready ]; then
     sudo --preserve-env=LOCAL_USER,CLAUDE_DOCKER_ALLOW_DOMAINS /usr/local/bin/init-proxy.sh
 fi
+
+# Publish the proxied container instructions as the managed-policy CLAUDE.md that
+# every session and subagent loads. Only needed in firewall mode: the image ships
+# CLAUDE.md as a copy of container.md, which is already complete without the
+# firewall. Runs after the branch above so the allowlist it reads is the live one.
+if [ "${DISABLE_FIREWALL:-}" != "1" ]; then
+    if ! sudo /usr/local/bin/write-container-md; then
+        echo "WARN: could not refresh /etc/claude-code/CLAUDE.md, it does not describe the proxy or the allowlist" >&2
+    fi
+fi
+
 # Install and refresh the mandatory Arkitektum marketplace plugin. ~/.claude is
 # host-mounted so installs persist. Needs github.com (allowlisted), no login.
 #
@@ -55,6 +66,19 @@ else
         if ! claude plugin update arkitektum-mandatory@arkitektum-marketplace >/dev/null 2>&1; then
             echo "WARN: plugin update failed, still at ${installed_sha:0:12}" >&2
         fi
+    fi
+fi
+
+# Installing is not enough: enablement is a separate flag in settings.json,
+# `claude plugin disable` writes an explicit false, and `claude plugin update`
+# never touches it. Reading the flag costs 3ms against 400ms for a CLI call, and
+# `claude plugin enable` exits non-zero when the plugin is already enabled, so
+# only call it when the flag is actually missing.
+plugin_enabled=$(jq -r '.enabledPlugins["arkitektum-mandatory@arkitektum-marketplace"] // empty' "${HOME}/.claude/settings.json" 2>/dev/null || true)
+if [ "$plugin_enabled" != "true" ]; then
+    echo "Enabling arkitektum-mandatory plugin..."
+    if ! enable_out=$(claude plugin enable arkitektum-mandatory@arkitektum-marketplace 2>&1); then
+        echo "WARN: ${enable_out}" >&2
     fi
 fi
 

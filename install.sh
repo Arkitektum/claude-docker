@@ -12,12 +12,12 @@ mkdir -p "$BIN_DIR" "$DATA_DIR"
 
 # Install build context (everything Docker needs)
 for f in Dockerfile squid.conf allowed_domains.txt init-proxy.sh entrypoint.sh \
-         container-info.sh container.md apt-safe \
+         write-container-md container.md apt-safe \
          customize.sh; do
   cp "$SOURCE/$f" "$DATA_DIR/$f"
 done
 chmod +x "$DATA_DIR/init-proxy.sh" "$DATA_DIR/entrypoint.sh" \
-         "$DATA_DIR/container-info.sh" \
+         "$DATA_DIR/write-container-md" \
          "$DATA_DIR/customize.sh"
 
 # Install CLI script

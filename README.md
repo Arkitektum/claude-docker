@@ -225,7 +225,7 @@ On every container start, the init script verifies that:
 2. Blocked domains are rejected by the proxy
 3. Direct connections (bypassing the proxy) are blocked by iptables
 
-Claude is informed about the container environment via a managed SessionStart hook that runs `/usr/local/bin/container-info.sh`. It emits the base doc (`/etc/claude-code/container.md`) plus a network section chosen at runtime: with the firewall active it appends the proxy guidance and the live allowlist; with `--no-firewall` it describes the host-network setup instead.
+Claude is informed about the container environment through the managed-policy `CLAUDE.md` at `/etc/claude-code/CLAUDE.md`, which every session and subagent loads. The image ships it as a copy of `/etc/claude-code/container.md`, which describes what holds regardless of the firewall. With the firewall active, the entrypoint calls `write-container-md` on each start to append the proxy's package-management and network rules plus the live allowlist. `--no-firewall` keeps the copy: it has no route to root to rewrite the file with, and nothing to add.
 
 ### Allowed domains
 

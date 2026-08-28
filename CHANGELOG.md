@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-28
+
+- Container instructions reach Claude as the managed-policy `CLAUDE.md` at `/etc/claude-code/CLAUDE.md`, which subagents load too. The image ships it as a copy of `container.md`, which covers the container regardless of the firewall. With the firewall active the entrypoint runs `write-container-md` on each start, appending the proxy's package-management and network rules and the live allowlist. `--no-firewall` keeps the copy: nothing to append, and no route to root to append it with.
+- Container instructions cover `CLAUDE_DOCKER_CUSTOMIZE`, so Claude can guide users through making a tool permanent instead of only reaching for `apt-safe`. Claude proposes the script contents but never writes the file: it runs as root before the proxy and firewall exist, so it stays on a host path outside the container's mounts.
+- The mandatory Arkitektum plugin is checked for enablement at container start, and enabled when the flag is missing. Installing records enablement, but `claude plugin update` leaves a disabled plugin disabled, so the install/update path alone could not guarantee it was active.
+
 ## 2026-08-17
 
 - Faster container start: the plugin refresh now probes the marketplace repo with a single `git ls-remote` and compares remote HEAD against the installed plugin's commit SHA. The slow `claude plugin` CLI commands only run on first install or when the marketplace actually changed. The entrypoint stays silent when the plugin is current and prints a status line when installing or updating.
