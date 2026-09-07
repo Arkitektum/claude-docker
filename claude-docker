@@ -8,13 +8,27 @@ DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claude-docker"
 # Parse flags
 REBUILD_FLAG=""
 NO_FIREWALL=""
+ADD_DIRS=()
 ARGS=()
-for arg in "$@"; do
-  case "$arg" in
+while [ $# -gt 0 ]; do
+  case "$1" in
     --rebuild) REBUILD_FLAG="--no-cache" ;;
     --no-firewall) NO_FIREWALL=1 ;;
-    *) ARGS+=("$arg") ;;
+    --add-dir=*) ADD_DIRS+=("${1#*=}") ;;
+    --add-dir)
+      if [ $# -lt 2 ] || [ "${2#-}" != "$2" ]; then
+        echo "Error: --add-dir requires a directory path" >&2
+        exit 1
+      fi
+      # Variadic, matching claude's own --add-dir: take every path up to the next flag.
+      while [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; do
+        ADD_DIRS+=("$2")
+        shift
+      done
+      ;;
+    *) ARGS+=("$1") ;;
   esac
+  shift
 done
 set -- "${ARGS[@]}"
 
@@ -65,6 +79,41 @@ fi
 LOCAL_USER="${USER}"
 LOCAL_UID="$(id -u)"
 LOCAL_GID="$(id -g)"
+
+# Resolve --add-dir paths before the build, so a bad path fails fast.
+# A path that exists on the host is bind-mounted at the same path inside the
+# container; the flag is forwarded to claude either way, so paths that only
+# exist in the image (/opt/..., and the like) still reach it.
+MOUNT_DIRS=()
+FORWARD_DIRS=()
+for dir in "${ADD_DIRS[@]}"; do
+  if [ ! -d "$dir" ]; then
+    echo "Warning: --add-dir $dir is not a directory on the host, forwarding it unmounted" >&2
+    FORWARD_DIRS+=("$dir")
+    continue
+  fi
+  # pwd -P rather than realpath, which is not present on every macOS.
+  RESOLVED="$(cd "$dir" && pwd -P)"
+  case "$RESOLVED" in
+    # On Linux the host home and the container home are the same path, so
+    # mounting it would bury the container's own home, including ~/.claude.
+    /|"/home/${LOCAL_USER}")
+      echo "Error: --add-dir $dir resolves to $RESOLVED, which would shadow the container's own filesystem." >&2
+      echo "Add a specific subdirectory instead." >&2
+      exit 1
+      ;;
+  esac
+  # The workspace is already mounted and already in context. Docker also rejects
+  # a repeated mount point, so the same directory twice has to collapse to one.
+  [ "$RESOLVED" = "$(pwd)" ] && continue
+  DUPLICATE=""
+  for seen in "${FORWARD_DIRS[@]}"; do
+    [ "$seen" = "$RESOLVED" ] && DUPLICATE=1
+  done
+  [ -n "$DUPLICATE" ] && continue
+  FORWARD_DIRS+=("$RESOLVED")
+  MOUNT_DIRS+=("$RESOLVED")
+done
 
 # Verify build context exists
 if [ ! -f "$DATA_DIR/Dockerfile" ]; then
@@ -125,6 +174,10 @@ RUN_ARGS=(
   -w "$(pwd)"
 )
 
+for dir in "${MOUNT_DIRS[@]}"; do
+  RUN_ARGS+=(-v "$dir:$dir")
+done
+
 if [ -n "$HOST_TZ" ]; then
   RUN_ARGS+=(-e TZ="$HOST_TZ")
 fi
@@ -162,4 +215,11 @@ else
   )
 fi
 
-docker run "${RUN_ARGS[@]}" "$IMAGE" "$CMD" "$@"
+CMD_ARGS=("$@")
+# Appended last: --add-dir is variadic, so anything after it would be eaten as
+# another directory. Skipped for bash, which has no use for the flag.
+if [ "$CMD" = "claude" ] && [ ${#FORWARD_DIRS[@]} -gt 0 ]; then
+  CMD_ARGS+=(--add-dir "${FORWARD_DIRS[@]}")
+fi
+
+docker run "${RUN_ARGS[@]}" "$IMAGE" "$CMD" "${CMD_ARGS[@]}"

@@ -79,6 +79,7 @@ claude-docker                  # Start Claude Code (with proxy)
 claude-docker --no-firewall    # Start without proxy/firewall
 claude-docker --rebuild        # Force rebuild the Docker image
 claude-docker bash             # Drop into a bash shell inside the container
+claude-docker --add-dir ../lib # Mount another directory and give Claude access to it
 ```
 
 Any additional arguments are passed through to `claude`. For example:
@@ -86,6 +87,19 @@ Any additional arguments are passed through to `claude`. For example:
 ```bash
 claude-docker --allow-dangerously-skip-permissions
 ```
+
+### Working on directories outside the project
+
+`--add-dir` means the same thing it does in `claude`, and additionally bind-mounts each directory into the container at its host path -- `/home/you/repos/lib` is `/home/you/repos/lib` on the inside too. It takes one or more paths, relative or absolute, and is mounted read-write like the working directory.
+
+```bash
+claude-docker --add-dir ~/repos/shared-lib
+claude-docker --add-dir ~/repos/api ~/repos/web
+```
+
+- A path that does not exist on the host is forwarded to `claude` unmounted, with a warning. That is how you reach a directory that only exists inside the image.
+- Your home directory and `/` are refused. On Linux the host home is also the container's home path, so mounting it would bury the container's own home and take `~/.claude` with it. Add a subdirectory instead.
+- `claude-docker bash --add-dir <dir>` mounts the directory without passing the flag on to bash.
 
 ### Allowing extra domains through the proxy
 
