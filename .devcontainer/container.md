@@ -69,7 +69,7 @@ For Node, install the matching version (`npm install playwright@1.60.0`) and it 
 
 ## Constraints
 
-- **You only have access to the mounted project directory.** The host filesystem is not available beyond the current working directory and `~/.claude`.
+- **You only have access to the mounted project directory.** The host filesystem is not available beyond the current working directory, any directory the user added with `--add-dir` when starting the container, and `~/.claude`.
 - **You are inside Docker.** System-level changes (modifying system config) require root and won't persist across container restarts unless they are part of the image build (see Permanent tooling above).
 - **`apt-get` and `apt` do not work in the running container**, with or without `sudo`. Package managers that install into the home directory do: `uv`, `npm`, `cargo`, `go install`, `dotnet tool`. A system package needed on every run has to go in the image (see Permanent tooling above), so walk the user through that rather than trying to install it at runtime.
 - **No SSH keys or git credentials are available.** Git operations to private repositories will fail. Public HTTPS clones work.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-07
+
+- `--add-dir` now bind-mounts each directory into the container at its host path, instead of being forwarded to `claude` as a path that does not exist on the inside. The flag keeps its upstream meaning and variadic form, so nothing new to learn. Paths are resolved before the build so a bad one fails fast; a path missing on the host is forwarded unmounted (for directories that only exist in the image), and `/` and the user's home are refused because on Linux the latter would bury the container's own home and `~/.claude` with it.
+
 ## 2026-08-28
 
 - Container instructions reach Claude as the managed-policy `CLAUDE.md` at `/etc/claude-code/CLAUDE.md`, which subagents load too. The image ships it as a copy of `container.md`, which covers the container regardless of the firewall. With the firewall active the entrypoint runs `write-container-md` on each start, appending the proxy's package-management and network rules and the live allowlist. `--no-firewall` keeps the copy: nothing to append, and no route to root to append it with.
