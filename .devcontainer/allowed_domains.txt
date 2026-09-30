@@ -27,3 +27,4 @@ ftp.uninett.no
 .deps.dev
 .bitbucket.org
 .altinn.studio
+.dibk.no
