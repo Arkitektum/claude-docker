@@ -82,6 +82,38 @@ if [ "$plugin_enabled" != "true" ]; then
     fi
 fi
 
+# Claude Code leaves auto-update off for third-party marketplaces unless a settings file sets autoUpdate.
+SETTINGS="${HOME}/.claude/settings.json"
+if ! jq -e '.extraKnownMarketplaces["arkitektum-marketplace"].autoUpdate != null' "$SETTINGS" >/dev/null 2>&1; then
+    echo "Turning on auto-update for arkitektum-marketplace..."
+    if tmp=$(mktemp "${SETTINGS}.XXXXXX") &&
+        jq '.extraKnownMarketplaces["arkitektum-marketplace"] =
+              {source: {source: "github", repo: "Arkitektum/claude-code-marketplace"}}
+              + .extraKnownMarketplaces["arkitektum-marketplace"] + {autoUpdate: true}' \
+            "$SETTINGS" >"$tmp" 2>/dev/null &&
+        chmod --reference="$SETTINGS" "$tmp" &&
+        mv "$tmp" "$SETTINGS"; then
+        :
+    else
+        rm -f "${tmp:-}"
+        echo "WARN: could not turn on auto-update in ${SETTINGS}" >&2
+    fi
+fi
+
+# `claude plugin disable` keeps the install record, so a plugin the user turned off is not reinstalled.
+install_default_plugin() {
+    local name="$1" marketplace="$2" source="$3" out
+    if jq -e --arg p "${name}@${marketplace}" '.plugins[$p][0]' "$PLUGIN_STATE" >/dev/null 2>&1; then
+        return
+    fi
+    echo "Installing ${name} plugin..."
+    if ! out=$(claude plugin install "$name" --marketplace "$source" 2>&1); then
+        echo "WARN: ${out}" >&2
+    fi
+}
+install_default_plugin mattpocock-skills arkitektum-marketplace Arkitektum/claude-code-marketplace
+install_default_plugin superpowers claude-plugins-official anthropics/claude-plugins-official
+
 # Source proxy host bypass so claude inherits the updated no_proxy
 # (BASH_ENV is not honored by Claude Code's internal shell)
 if [ -f /etc/proxy-host.sh ]; then

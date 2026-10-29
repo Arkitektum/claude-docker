@@ -91,10 +91,12 @@ RUN (userdel -r ubuntu 2>/dev/null || true) && \
     chown ${LOCAL_UID}:${LOCAL_GID} /home/${LOCAL_USER}/.claude
 ENV HOME=/home/${LOCAL_USER}
 
+# The first and last of these also stop plugin auto-update unless FORCE_AUTOUPDATE_PLUGINS is set.
 ENV DISABLE_AUTOUPDATER=1 \
     DISABLE_TELEMETRY=1 \
     DISABLE_ERROR_REPORTING=1 \
-    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+    FORCE_AUTOUPDATE_PLUGINS=1
 
 ENV PATH="/home/${LOCAL_USER}/.local/bin:${PATH}" \
     GOBIN="/home/${LOCAL_USER}/.local/bin"

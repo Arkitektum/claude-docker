@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-29
+
+- Plugins update automatically in the container. The image sets `FORCE_AUTOUPDATE_PLUGINS=1`, because `DISABLE_AUTOUPDATER` and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` also stopped plugin updates, which left even `claude-plugins-official` frozen. The entrypoint sets `autoUpdate: true` for `arkitektum-marketplace` in `~/.claude/settings.json` when the key is missing, and an explicit `false` stays. A managed settings file in the image can't carry the setting: server-managed settings from claude.ai take precedence, and Claude Code then ignores plugin keys in the file.
+- `mattpocock-skills` from `arkitektum-marketplace` and `superpowers` from `claude-plugins-official` are installed at container start when missing. Unlike the mandatory plugin, they are not enabled again, so turning one off in `/plugin` sticks.
+
 ## 2026-09-07
 
 - `--add-dir` now bind-mounts each directory into the container at its host path, instead of being forwarded to `claude` as a path that does not exist on the inside. The flag keeps its upstream meaning and variadic form, so nothing new to learn. Paths are resolved before the build so a bad one fails fast; a path missing on the host is forwarded unmounted (for directories that only exist in the image), and `/` and the user's home are refused because on Linux the latter would bury the container's own home and `~/.claude` with it.
