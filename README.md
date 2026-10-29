@@ -280,9 +280,10 @@ The entrypoint sets up these plugins in your `~/.claude` at every container star
 |---|---|---|
 | `arkitektum-mandatory` | `arkitektum-marketplace` | Installed, updated to the marketplace's latest commit before the session starts, and enabled again if it was turned off |
 | `mattpocock-skills` | `arkitektum-marketplace` | Installed if missing |
+| `arkitektum-security` | `arkitektum-marketplace` | Installed if missing |
 | `superpowers` | `claude-plugins-official` | Installed if missing |
 
-To opt out of `mattpocock-skills` or `superpowers`, turn it off in `/plugin`. The entrypoint doesn't enable it again. If you uninstall it instead, the next start installs it again.
+To opt out of any of the last three, turn it off in `/plugin`. The entrypoint doesn't enable it again. If you uninstall it instead, the next start installs it again.
 
 During a session, Claude Code updates plugins in the background, and the new versions load in the next session. Two settings make that work in the container:
 

@@ -112,6 +112,7 @@ install_default_plugin() {
     fi
 }
 install_default_plugin mattpocock-skills arkitektum-marketplace Arkitektum/claude-code-marketplace
+install_default_plugin arkitektum-security arkitektum-marketplace Arkitektum/claude-code-marketplace
 install_default_plugin superpowers claude-plugins-official anthropics/claude-plugins-official
 
 # Source proxy host bypass so claude inherits the updated no_proxy

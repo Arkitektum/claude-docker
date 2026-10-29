@@ -24,6 +24,7 @@ assert_pass "arkitektum-marketplace auto-updates" \
 
 for plugin in arkitektum-mandatory@arkitektum-marketplace \
     mattpocock-skills@arkitektum-marketplace \
+    arkitektum-security@arkitektum-marketplace \
     superpowers@claude-plugins-official; do
     assert_pass "$plugin installed" \
         jq -e --arg p "$plugin" '.plugins[$p][0]' "$STATE"
