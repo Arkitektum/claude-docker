@@ -4,6 +4,7 @@
 
 - Plugins update automatically in the container. The image sets `FORCE_AUTOUPDATE_PLUGINS=1`, because `DISABLE_AUTOUPDATER` and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` also stopped plugin updates, which left even `claude-plugins-official` frozen. The entrypoint sets `autoUpdate: true` for `arkitektum-marketplace` in `~/.claude/settings.json` when the key is missing, and an explicit `false` stays. A managed settings file in the image can't carry the setting: server-managed settings from claude.ai take precedence, and Claude Code then ignores plugin keys in the file.
 - `mattpocock-skills` and `arkitektum-security` from `arkitektum-marketplace`, and `superpowers` from `claude-plugins-official`, are installed at container start when missing. Unlike the mandatory plugin, they are not enabled again, so turning one off in `/plugin` sticks.
+- The image sets `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`. Claude Code clones GitHub `owner/repo` plugin sources over SSH first, which the firewall blocks, and a `git-subdir` source then failed to install instead of falling back to HTTPS.
 
 ## 2026-09-07
 

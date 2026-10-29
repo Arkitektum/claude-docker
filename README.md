@@ -285,9 +285,10 @@ The entrypoint sets up these plugins in your `~/.claude` at every container star
 
 To opt out of any of the last three, turn it off in `/plugin`. The entrypoint doesn't enable it again. If you uninstall it instead, the next start installs it again.
 
-During a session, Claude Code updates plugins in the background, and the new versions load in the next session. Two settings make that work in the container:
+During a session, Claude Code updates plugins in the background, and the new versions load in the next session. Three settings make that work in the container:
 
 - The image sets `FORCE_AUTOUPDATE_PLUGINS=1`. Without it, `DISABLE_AUTOUPDATER` and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` would also stop plugin updates.
+- The image sets `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`. Claude Code otherwise clones GitHub `owner/repo` sources over SSH first, which the firewall blocks, and `git-subdir` sources and plugin updates don't fall back to HTTPS.
 - The entrypoint sets `autoUpdate: true` for `arkitektum-marketplace` in `~/.claude/settings.json` when the key is missing. Claude Code turns auto-update off for third-party marketplaces by default. `~/.claude` is shared with the host, so the setting also applies to `claude` run outside the container. Set it to `false` to opt out, and the entrypoint leaves it alone.
 
 ## Installing packages (for Claude)
