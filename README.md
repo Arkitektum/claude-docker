@@ -160,7 +160,8 @@ This only forwards name and email, not your full `.gitconfig` (no credential hel
 - Your current directory is mounted into the container, so Claude can read and edit your files directly.
 - A Squid proxy filters outbound traffic by domain name, only allowing approved services.
 - Direct outbound connections from Claude are blocked by iptables; all traffic must go through the proxy.
-- Container instructions are injected into Claude's context on every session start via a managed hook, so Claude is aware of the proxy restrictions.
+- Container instructions reach Claude as the managed-policy `CLAUDE.md` at `/etc/claude-code/CLAUDE.md`, so Claude and its subagents know about the proxy restrictions.
+- Plugins are installed and kept up to date at container start, see [Plugins](#plugins).
 - `~/.claude` and `~/.claude.json` are mounted so your session, settings, and API keys persist.
 - Files are mounted read-write. Claude can modify files in your current directory. Use version control.
 
@@ -270,6 +271,25 @@ The image is based on Ubuntu 24.04 and includes:
 - Common tools: git, ripgrep, jq, tree, postgresql-client
 - Terraform MCP server
 - `apt-safe` CLI for safe package installation
+
+## Plugins
+
+The entrypoint sets up these plugins in your `~/.claude` at every container start:
+
+| Plugin | Marketplace | At start |
+|---|---|---|
+| `arkitektum-mandatory` | `arkitektum-marketplace` | Installed, updated to the marketplace's latest commit before the session starts, and enabled again if it was turned off |
+| `mattpocock-skills` | `arkitektum-marketplace` | Installed if missing |
+| `arkitektum-security` | `arkitektum-marketplace` | Installed if missing |
+| `superpowers` | `claude-plugins-official` | Installed if missing |
+
+To opt out of any of the last three, turn it off in `/plugin`. The entrypoint doesn't enable it again. If you uninstall it instead, the next start installs it again.
+
+During a session, Claude Code updates plugins in the background, and the new versions load in the next session. Three settings make that work in the container:
+
+- The image sets `FORCE_AUTOUPDATE_PLUGINS=1`. Without it, `DISABLE_AUTOUPDATER` and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` would also stop plugin updates.
+- The image sets `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`. Claude Code otherwise clones GitHub `owner/repo` sources over SSH first, which the firewall blocks, and `git-subdir` sources and plugin updates don't fall back to HTTPS.
+- The entrypoint sets `autoUpdate: true` for `arkitektum-marketplace` in `~/.claude/settings.json` when the key is missing. Claude Code turns auto-update off for third-party marketplaces by default. `~/.claude` is shared with the host, so the setting also applies to `claude` run outside the container. Set it to `false` to opt out, and the entrypoint leaves it alone.
 
 ## Installing packages (for Claude)
 

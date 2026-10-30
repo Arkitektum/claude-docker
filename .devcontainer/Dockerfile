@@ -96,6 +96,11 @@ ENV DISABLE_AUTOUPDATER=1 \
     DISABLE_ERROR_REPORTING=1 \
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 
+# DISABLE_AUTOUPDATER and CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC stop plugin auto-update unless forced.
+# Plugin sources written as owner/repo clone over SSH first, which the firewall blocks.
+ENV FORCE_AUTOUPDATE_PLUGINS=1 \
+    CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1
+
 ENV PATH="/home/${LOCAL_USER}/.local/bin:${PATH}" \
     GOBIN="/home/${LOCAL_USER}/.local/bin"
 
